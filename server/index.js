@@ -4,8 +4,8 @@ const cors = require('cors');
 const authRouter = require('./routes/auth');
 const courseRepRouter = require('./routes/courseRep');
 const studentRouter = require('./routes/students');
-const sequelize = require('./config/database'); // Use the sequelize instance from config
-const setupAssociations = require('./config/associations'); // Ensure associations are defined
+const sequelize = require('./config/database'); 
+const setupAssociations = require('./config/associations'); 
 
 const app = express();
 app.use(express.json());
