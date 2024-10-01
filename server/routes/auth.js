@@ -24,8 +24,8 @@ authRouter.post('/users/signup', async (req, res) => {
       return res.status(400).json({ message: 'Email already exists' });
     }
     const parsedLevel = parseInt(level, 10);
-    if (isNaN(parsedLevel) || parsedLevel < 100 || parsedLevel > 800) {
-      return res.status(400).json({ error: 'Invalid level. Must be an integer between 100 and 800.' });
+    if (isNaN(parsedLevel) || parsedLevel < 100 || parsedLevel > 600) {
+      return res.status(400).json({ error: 'Invalid level. Must be an integer between 100 and 600.' });
     }
     const hashedPassword = await bcryptjs.hash(password, 10);
     const user = await User.create({ 
@@ -69,7 +69,9 @@ authRouter.post('/users/signin', async (req, res) => {
     const token = jwt.sign(
       { id: user.user_id },
       process.env.JWT_SECRET || 'defaultSecret',
-      { expiresIn: '1d' }
+      { expiresIn: '1d'
+        
+       }
     );
     res.status(200).json({
       message: 'Sign-in successful',

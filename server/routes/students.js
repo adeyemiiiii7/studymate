@@ -5,7 +5,6 @@ const authorizeRole = require('../middleware/authorizeRole');
 const studentRouter = express.Router();
 const auth = require('../middleware/auth');
 
-
 studentRouter.post('/classrooms/join', auth , authorizeRole(['student']), async (req, res) => {
   try {
     const { joinCode } = req.body;
@@ -41,7 +40,7 @@ studentRouter.get('/student/classrooms', auth, authorizeRole(['student']), async
       where: { student_id: req.user.user_id },
       include: {
         model: Classroom,
-        as: 'classroom',  // Note the change here from 'classrooms' to 'classroom'
+        as: 'classroom',  
         attributes: ['classroom_id', 'name','level', 'department','section_term', 'join_code', 'course_rep_id'],
       },
     });
@@ -53,6 +52,31 @@ studentRouter.get('/student/classrooms', auth, authorizeRole(['student']), async
     res.status(200).json({
       message: 'Classrooms retrieved successfully',
       classrooms: studentClassrooms.map(sc => sc.classroom),
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+//endpoint to ger all sections in a classroom
+studentRouter.get('/classroom/:classroomId/sections', auth, authorizeRole(['student']), async (req, res) => {
+  try{
+    const studentClassroom = await ClassroomStudent.findOne({
+      where: { student_id: req.user.user_id, classroom_id: req.params.classroomId },
+    });
+    if (!studentClassroom) {
+      return res.status(404).json({ error: 'You are not in this classroom' });
+    }
+    const classroomSections = await Section.findAll({
+      where: { classroom_id: req.params.classroomId },
+    });
+    if (!classroomSections || classroomSections.length === 0) {
+      return res.status(404).json({ message: 'No sections found for this classroom' });
+    }
+    res.status(200).json({
+      message: 'Sections retrieved successfully',
+      sections: classroomSections,
     });
   } catch (error) {
     console.error(error);

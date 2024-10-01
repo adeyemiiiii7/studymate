@@ -28,7 +28,7 @@ const Classroom = sequelize.define('Classroom', {
     allowNull: false,
     unique: true,
   },
-  section_term: { 
+  session: { 
     type: DataTypes.STRING,
     allowNull: false,
   },
