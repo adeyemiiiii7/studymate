@@ -253,4 +253,39 @@ courseRepRouter.get('/api/course-rep/classrooms/:classroomId/course-sections/:co
 //   }
 // });
 
+
+//Route to post past questions
+courseRepRouter.post('/api/course-rep/classrooms/:classroomId/course-sections/:courseSectionId/past-questions/upload', auth, authorizeRole(['course_rep']), upload.single('file'), async (req, res) => {
+  try {
+    const { classroomId, courseSectionId } = req.params;
+    const { past_question_name } = req.body;
+    const file_url = req.file.path;
+
+    const courseSection = await CourseSection.findOne({
+      where: {
+        course_section_id: courseSectionId,
+        classroom_id: classroomId,
+      },
+    });
+
+    if (!courseSection) {
+      return res.status(400).json({ error: 'Course section not found' });
+    }
+
+    const newPastQuestion = await PastQuestion.create({
+      past_question_name,
+      file_name: req.file.originalname,
+      file_url,
+      course_section_id: courseSection.course_section_id,
+      classroom_id: classroomId,
+    });
+
+    res.json({ message: 'Past Question uploaded successfully', past_question: newPastQuestion });
+  } catch (error) {
+    console.error('Error uploading past question:', error);
+    res.status(500).json({ error: 'Failed to upload past question' });
+  }
+});
+
+
 module.exports = courseRepRouter;
