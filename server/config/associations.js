@@ -31,7 +31,10 @@ function setupAssociations() {
   Classroom.hasMany(CourseSection, { as: 'courseSections', foreignKey: 'classroom_id' });
   CourseSection.belongsTo(Classroom, { foreignKey: 'classroom_id', as: 'classroom' });
 
-  // One-to-Many: Course Section containing multiple Slides
+  Classroom.hasMany(Slide, { as: 'slides', foreignKey: 'classroom_id' });
+ Slide.belongsTo(Classroom, { foreignKey: 'classroom_id', as: 'classroom' });
+
+
   CourseSection.hasMany(Slide, { foreignKey: 'course_section_id', as: 'slides' });
   Slide.belongsTo(CourseSection, { foreignKey: 'course_section_id', as: 'courseSection' });
 }
