@@ -204,32 +204,53 @@ courseRepRouter.post('/api/course-rep/classrooms/:classroomId/course-sections/:c
   }
 });
 
-// Route to fetch all classrooms, sections, and slides
-courseRepRouter.get('/api/course-rep/classrooms-sections-slides', auth, authorizeRole(['course_rep']), async (req, res) => {
+//Fetch Slides by Sections
+courseRepRouter.get('/api/course-rep/classrooms/:classroomId/course-sections/:courseSectionId/slides', auth, authorizeRole(['course_rep']), async (req, res) => {
+  const { classroomId, courseSectionId } = req.params;
   try {
-    const classrooms = await Classroom.findAll({
-      where: { course_rep_id: req.user.user_id },
-      attributes: ['classroom_id', 'name', 'level', 'department', 'session'],
-      include: [{
-        model: CourseSection,
-        as: 'courseSections',
-        attributes: ['course_section_id', 'course_title', 'course_code'],
-        include: [{
-          model: Slide,
-          as: 'slides',
-          attributes: ['slide_id', 'slide_name', 'file_name', 'file_url', 'slide_number']
-        }]
-      }]
+    const slides = await Slide.findAll({
+      where: { course_section_id: courseSectionId, classroom_id: classroomId },
+      attributes: ['slide_id', 'slide_name', 'file_name', 'file_url', 'slide_number'],
     });
 
     res.status(200).json({
-      message: 'Classrooms, sections, and slides fetched successfully',
-      classrooms,
+      message: 'Slides fetched successfully',
+      slides,
     });
   } catch (error) {
-    console.error('Error fetching classrooms, sections, and slides:', error);
-    res.status(500).json({ error: 'An error occurred while fetching data' });
+    console.error('Error Fetching Slides:', error);
+    res.status(500).json({ error: 'An error occurred while fetching slides' });
   }
 });
+
+// this might be bad practice due to large about of data being fetched
+//if implemented i should use pagination
+//  Route to fetch all classrooms, sections, and slides
+// courseRepRouter.get('/api/course-rep/classrooms-sections-slides', auth, authorizeRole(['course_rep']), async (req, res) => {
+//   try {
+//     const classrooms = await Classroom.findAll({
+//       where: { course_rep_id: req.user.user_id },
+//       attributes: ['classroom_id', 'name', 'level', 'department', 'session'],
+//       include: [{
+//         model: CourseSection,
+//         as: 'courseSections',
+//         attributes: ['course_section_id', 'course_title', 'course_code'],
+//         include: [{
+//           model: Slide,
+//           as: 'slides',
+//           attributes: ['slide_id', 'slide_name', 'file_name', 'file_url', 'slide_number']
+//         }]
+//       }]
+//     });
+
+//     res.status(200).json({
+//       message: 'Classrooms, sections, and slides fetched successfully',
+//       classrooms,
+//     });
+//   } catch (error) {
+//     console.error('Error fetching classrooms, sections, and slides:', error);
+//     res.status(500).json({ error: 'An error occurred while fetching data' });
+//   }
+// });
 
 module.exports = courseRepRouter;
