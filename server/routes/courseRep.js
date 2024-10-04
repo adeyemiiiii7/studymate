@@ -10,7 +10,7 @@ const Slide = require('../models/slides');
 const upload = require('../middleware/upload');
 
 // Route for creating a classroom
-courseRepRouter.post('/classroom/create', auth, authorizeRole(['course_rep']), async (req, res) => {
+courseRepRouter.post('/api/course-rep/classrooms/create', auth, authorizeRole(['course_rep']), async (req, res) => {
   const { name, level, department, session, email } = req.body;
   try {
     console.log('Request Body:', req.body);
@@ -18,7 +18,7 @@ courseRepRouter.post('/classroom/create', auth, authorizeRole(['course_rep']), a
     if (!req.user || !req.user.user_id) {
       return res.status(400).json({ error: 'User information is missing' });
     }
-      // Fetch the course rep's email from the logged-in user's data
+
     const courseRepEmail = req.user.email;
     const existingClassroom = await Classroom.findOne({
       where: {
@@ -42,7 +42,7 @@ courseRepRouter.post('/classroom/create', auth, authorizeRole(['course_rep']), a
       join_code: joinCode,
       course_rep_id: req.user.user_id,
     });
-    // Send the join code to the course rep's email using Nodemailer
+
     const transporter = nodemailer.createTransport({
       service: 'gmail',
       auth: {
@@ -74,12 +74,11 @@ courseRepRouter.post('/classroom/create', auth, authorizeRole(['course_rep']), a
 });
 
 // Route for creating a course section inside a classroom
-courseRepRouter.post('/classroom/:classroomId/course-section/create', auth, authorizeRole(['course_rep']), async (req, res) => {
+courseRepRouter.post('/api/course-rep/classrooms/:classroomId/course-sections/create', auth, authorizeRole(['course_rep']), async (req, res) => {
   const { classroomId } = req.params;
-  const { courseTitle, courseCode,  } = req.body;
+  const { courseTitle, courseCode } = req.body;
 
   try {
-    // Check if the classroom exists and belongs to the course rep
     const classroom = await Classroom.findOne({
       where: {
         classroom_id: classroomId,
@@ -105,16 +104,16 @@ courseRepRouter.post('/classroom/:classroomId/course-section/create', auth, auth
   }
 });
 
-courseRepRouter.get('/classrooms', auth, authorizeRole(['course_rep']), async (req, res) => {
+// Route to get all classrooms managed by the course rep
+courseRepRouter.get('/api/course-rep/classrooms', auth, authorizeRole(['course_rep']), async (req, res) => {
   try {
-    // Fetch all classrooms managed by the logged-in course rep
     const classrooms = await Classroom.findAll({
       where: { course_rep_id: req.user.user_id },
       include: {
         model: CourseSection,
-        as: 'courseSections', 
+        as: 'courseSections',
         attributes: ['course_section_id', 'course_title', 'course_code'],
-      }         
+      }
     });
     res.status(200).json({
       message: 'Classrooms fetched successfully',
@@ -126,8 +125,8 @@ courseRepRouter.get('/classrooms', auth, authorizeRole(['course_rep']), async (r
   }
 });
 
-// Fetch sections under a specific classroom
-courseRepRouter.get('/classroom/:classroomId/sections', auth, authorizeRole(['course_rep']), async (req, res) => {
+// Route to fetch sections under a specific classroom
+courseRepRouter.get('/api/course-rep/classrooms/:classroomId/sections', auth, authorizeRole(['course_rep']), async (req, res) => {
   const { classroomId } = req.params;
 
   try {
@@ -157,44 +156,45 @@ courseRepRouter.get('/classroom/:classroomId/sections', auth, authorizeRole(['co
   }
 });
 
-courseRepRouter.post('/classroom/:classroomId/course-section/:courseSectionId/uploadSlide', auth, authorizeRole(['course_rep']), upload.single('file'), async (req, res) => {
+// Route to upload a slide to a course section
+courseRepRouter.post('/api/course-rep/classrooms/:classroomId/course-sections/:courseSectionId/slides/upload', auth, authorizeRole(['course_rep']), upload.single('file'), async (req, res) => {
   try {
     const { classroomId, courseSectionId } = req.params;
-    const { slide_name, slide_number } = req.body; // Accept slide_number from the request body
+    const { slide_name, slide_number } = req.body;
     const file_url = req.file.path;
 
     const courseSection = await CourseSection.findOne({
       where: {
         course_section_id: courseSectionId,
-        classroom_id: classroomId, 
+        classroom_id: classroomId,
       },
     });
 
-    // Check if courseSection exists
     if (!courseSection) {
       return res.status(400).json({ error: 'Course section not found' });
     }
 
-    // Validate slide_number
     if (!slide_number || isNaN(slide_number)) {
       return res.status(400).json({ error: 'Invalid slide number. Please provide a valid number.' });
     }
-    // Check if the slide_number is already used in the same course section
+
     const existingSlide = await Slide.findOne({
       where: {
         course_section_id: courseSection.course_section_id,
-        slide_number: slide_number
+        slide_number: slide_number,
       },
     });
     if (existingSlide) {
       return res.status(400).json({ error: 'Slide number already exists in this course section. Please use a different number.' });
     }
+
     const newSlide = await Slide.create({
       slide_name,
       file_name: req.file.originalname,
       file_url,
       slide_number: parseInt(slide_number),
-      course_section_id: courseSection.course_section_id
+      course_section_id: courseSection.course_section_id,
+      classroom_id: classroomId,
     });
 
     res.json({ message: 'Slide uploaded successfully', slide: newSlide });
@@ -204,6 +204,32 @@ courseRepRouter.post('/classroom/:classroomId/course-section/:courseSectionId/up
   }
 });
 
+// Route to fetch all classrooms, sections, and slides
+courseRepRouter.get('/api/course-rep/classrooms-sections-slides', auth, authorizeRole(['course_rep']), async (req, res) => {
+  try {
+    const classrooms = await Classroom.findAll({
+      where: { course_rep_id: req.user.user_id },
+      attributes: ['classroom_id', 'name', 'level', 'department', 'session'],
+      include: [{
+        model: CourseSection,
+        as: 'courseSections',
+        attributes: ['course_section_id', 'course_title', 'course_code'],
+        include: [{
+          model: Slide,
+          as: 'slides',
+          attributes: ['slide_id', 'slide_name', 'file_name', 'file_url', 'slide_number']
+        }]
+      }]
+    });
 
+    res.status(200).json({
+      message: 'Classrooms, sections, and slides fetched successfully',
+      classrooms,
+    });
+  } catch (error) {
+    console.error('Error fetching classrooms, sections, and slides:', error);
+    res.status(500).json({ error: 'An error occurred while fetching data' });
+  }
+});
 
 module.exports = courseRepRouter;

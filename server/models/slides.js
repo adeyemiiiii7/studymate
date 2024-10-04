@@ -1,7 +1,6 @@
 const { DataTypes } = require('sequelize');
 const sequelize = require('../config/database');
 
-// Define the Slide model
 const Slide = sequelize.define('Slide', {
   slide_id: {
     type: DataTypes.UUID,
@@ -24,19 +23,29 @@ const Slide = sequelize.define('Slide', {
     type: DataTypes.INTEGER,
     allowNull: false,
     references: {
-      model: 'CourseSections', 
+      model: 'CourseSections',
       key: 'course_section_id',
     },
-    onUpdate: 'CASCADE', 
-    onDelete: 'CASCADE' 
+    onUpdate: 'CASCADE',
+    onDelete: 'CASCADE'
   },
-  slide_text: {
+  classroom_id: {
+    type: DataTypes.UUID,
+    references: {
+      model: 'Classrooms', 
+      key: 'classroom_id',
+    },
+    allowNull: false,
+    onUpdate: 'CASCADE',
+    onDelete: 'CASCADE'
+  },
+  slide_name: {
     type: DataTypes.TEXT,
     allowNull: true,
   }
 }, {
   tableName: 'Slides',
-  timestamps: true,  
+  timestamps: true,
 });
 
 module.exports = Slide;
