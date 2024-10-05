@@ -3,12 +3,12 @@ const { generateJoinCode } = require('../utils/utils');
 const auth = require('../middleware/auth');
 const authorizeRole = require('../middleware/authorizeRole');
 const Classroom = require('../models/classroom');
-const CourseSection = require('../models/courseSection'); 
+const CourseSection = require('../models/courseSection');
 const courseRepRouter = express.Router();
 const nodemailer = require('nodemailer');
 const Slide = require('../models/slides');
 const upload = require('../middleware/upload');
-
+const PastQuestion = require('../models/pastQuestions');
 // Route for creating a classroom
 courseRepRouter.post('/api/course-rep/classrooms/create', auth, authorizeRole(['course_rep']), async (req, res) => {
   const { name, level, department, session, email } = req.body;
@@ -74,7 +74,8 @@ courseRepRouter.post('/api/course-rep/classrooms/create', auth, authorizeRole(['
 });
 
 // Route for creating a course section inside a classroom
-courseRepRouter.post('/api/course-rep/classrooms/:classroomId/course-sections/create', auth, authorizeRole(['course_rep']), async (req, res) => {
+courseRepRouter.post('/api/course-rep/classrooms/:classroomId/course-sections/create',
+   auth, authorizeRole(['course_rep']), async (req, res) => {
   const { classroomId } = req.params;
   const { courseTitle, courseCode } = req.body;
 
@@ -105,7 +106,8 @@ courseRepRouter.post('/api/course-rep/classrooms/:classroomId/course-sections/cr
 });
 
 // Route to get all classrooms managed by the course rep
-courseRepRouter.get('/api/course-rep/classrooms', auth, authorizeRole(['course_rep']), async (req, res) => {
+courseRepRouter.get('/api/course-rep/classrooms', 
+  auth, authorizeRole(['course_rep']), async (req, res) => {
   try {
     const classrooms = await Classroom.findAll({
       where: { course_rep_id: req.user.user_id },
@@ -126,7 +128,8 @@ courseRepRouter.get('/api/course-rep/classrooms', auth, authorizeRole(['course_r
 });
 
 // Route to fetch sections under a specific classroom
-courseRepRouter.get('/api/course-rep/classrooms/:classroomId/sections', auth, authorizeRole(['course_rep']), async (req, res) => {
+courseRepRouter.get('/api/course-rep/classrooms/:classroomId/sections', 
+  auth, authorizeRole(['course_rep']), async (req, res) => {
   const { classroomId } = req.params;
 
   try {
@@ -157,7 +160,8 @@ courseRepRouter.get('/api/course-rep/classrooms/:classroomId/sections', auth, au
 });
 
 // Route to upload a slide to a course section
-courseRepRouter.post('/api/course-rep/classrooms/:classroomId/course-sections/:courseSectionId/slides/upload', auth, authorizeRole(['course_rep']), upload.single('file'), async (req, res) => {
+courseRepRouter.post('/api/course-rep/classrooms/:classroomId/course-sections/:courseSectionId/slides/upload', 
+  auth, authorizeRole(['course_rep']), upload.single('file'), async (req, res) => {
   try {
     const { classroomId, courseSectionId } = req.params;
     const { slide_name, slide_number } = req.body;
@@ -205,7 +209,8 @@ courseRepRouter.post('/api/course-rep/classrooms/:classroomId/course-sections/:c
 });
 
 //Fetch Slides by Sections
-courseRepRouter.get('/api/course-rep/classrooms/:classroomId/course-sections/:courseSectionId/slides', auth, authorizeRole(['course_rep']), async (req, res) => {
+courseRepRouter.get('/api/course-rep/classrooms/:classroomId/course-sections/:courseSectionId/slides', 
+  auth, authorizeRole(['course_rep']), async (req, res) => {
   const { classroomId, courseSectionId } = req.params;
   try {
     const slides = await Slide.findAll({
@@ -255,37 +260,48 @@ courseRepRouter.get('/api/course-rep/classrooms/:classroomId/course-sections/:co
 
 
 //Route to post past questions
-courseRepRouter.post('/api/course-rep/classrooms/:classroomId/course-sections/:courseSectionId/past-questions/upload', auth, authorizeRole(['course_rep']), upload.single('file'), async (req, res) => {
-  try {
-    const { classroomId, courseSectionId } = req.params;
-    const { past_question_name } = req.body;
-    const file_url = req.file.path;
+courseRepRouter.post('/api/course-rep/classrooms/:classroomId/course-sections/:courseSectionId/past-questions/upload',
+  auth,
+  authorizeRole(['course_rep']),
+  upload.array('files', 5),
+  async (req, res) => {
+    try {
+      const { classroomId, courseSectionId } = req.params;
+      const { past_question_name } = req.body;
 
-    const courseSection = await CourseSection.findOne({
-      where: {
-        course_section_id: courseSectionId,
+      if (!req.files || req.files.length === 0) {
+        return res.status(400).json({ error: 'No files uploaded' });
+      }
+
+      const courseSection = await CourseSection.findOne({
+        where: {
+          course_section_id: courseSectionId,
+          classroom_id: classroomId,
+        },
+      });
+
+      if (!courseSection) {
+        return res.status(400).json({ error: 'Course section not found' });
+      }
+
+      const file_names = req.files.map(file => file.originalname);
+      // Cloudinary returns the URL in the path property
+      const file_urls = req.files.map(file => file.path); 
+      const newPastQuestion = await PastQuestion.create({
+        past_question_name,
+        file_names,
+        file_urls,
+        course_section_id: courseSection.course_section_id,
         classroom_id: classroomId,
-      },
-    });
+      });
 
-    if (!courseSection) {
-      return res.status(400).json({ error: 'Course section not found' });
+      res.json({ message: 'Past Question uploaded successfully', past_question: newPastQuestion });
+    } catch (error) {
+      console.error('Error uploading past question:', error);
+      res.status(500).json({ error: 'Failed to upload past question' });
     }
-
-    const newPastQuestion = await PastQuestion.create({
-      past_question_name,
-      file_name: req.file.originalname,
-      file_url,
-      course_section_id: courseSection.course_section_id,
-      classroom_id: classroomId,
-    });
-
-    res.json({ message: 'Past Question uploaded successfully', past_question: newPastQuestion });
-  } catch (error) {
-    console.error('Error uploading past question:', error);
-    res.status(500).json({ error: 'Failed to upload past question' });
   }
-});
+);
 
 
 module.exports = courseRepRouter;
