@@ -1,14 +1,18 @@
 const multer = require('multer');
 const { CloudinaryStorage } = require('multer-storage-cloudinary');
-const cloudinary = require('../config/cloudinary'); 
+const cloudinary = require('../config/cloudinary');
 
-// Create a CloudinaryStorage instance for handling PDF and DOCX files
+// Create a CloudinaryStorage instance for handling various file types
 const storage = new CloudinaryStorage({
   cloudinary: cloudinary,
   params: (req, file) => {
+    let folder = 'documents';
+    if (file.mimetype.startsWith('image/')) {
+      folder = 'images';
+    }
     return {
-      folder: 'documents',
-      allowed_formats: ['pdf', 'doc', 'docx'], 
+      folder: folder,
+      allowed_formats: ['pdf', 'doc', 'docx', 'jpg', 'jpeg', 'png', 'gif'],
     };
   },
 });
@@ -17,14 +21,17 @@ const storage = new CloudinaryStorage({
 const fileFilter = (req, file, cb) => {
   const allowedMimeTypes = [
     'application/pdf',
-    'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 
-    'application/msword', 
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    'application/msword',
+    'image/jpeg',
+    'image/png',
+    'image/gif'
   ];
 
   if (allowedMimeTypes.includes(file.mimetype)) {
     cb(null, true);
   } else {
-    cb(new Error('Unsupported file type. Only PDF and DOCX are allowed.'), false);
+    cb(new Error('Unsupported file type. Only PDF, DOCX, JPG, JPEG, PNG, and GIF are allowed.'), false);
   }
 };
 
@@ -33,7 +40,7 @@ const upload = multer({
   storage: storage,
   fileFilter: fileFilter,
   limits: {
-    fileSize: 20 * 1024 * 1024, 
+    fileSize: 20 * 1024 * 1024, // 20MB file size limit
   },
 });
 
