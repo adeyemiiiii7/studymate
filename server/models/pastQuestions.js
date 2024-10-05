@@ -21,12 +21,12 @@ const PastQuestion = sequelize.define('PastQuestion', {
     onUpdate: 'CASCADE',
     onDelete: 'CASCADE',
   },
-  file_name: {
-    type: DataTypes.STRING,
+  file_names: {
+    type: DataTypes.ARRAY(DataTypes.STRING),
     allowNull: false,
   },
-  file_url: {
-    type: DataTypes.STRING,
+  file_urls: {
+    type: DataTypes.ARRAY(DataTypes.STRING),
     allowNull: false,
   },
   classroom_id: {
