@@ -9,9 +9,10 @@ const nodemailer = require('nodemailer');
 const Slide = require('../models/slides');
 const upload = require('../middleware/upload');
 const PastQuestion = require('../models/pastQuestions');
+const Announcement = require('../models/announcements');
 // Route for creating a classroom
 courseRepRouter.post('/api/course-rep/classrooms/create', auth, authorizeRole(['course_rep']), async (req, res) => {
-  const { name, level, department, session, email } = req.body;
+  const { name, level, department, session } = req.body;
   try {
     console.log('Request Body:', req.body);
 
@@ -283,7 +284,6 @@ courseRepRouter.post('/api/course-rep/classrooms/:classroomId/course-sections/:c
       if (!courseSection) {
         return res.status(400).json({ error: 'Course section not found' });
       }
-
       const file_names = req.files.map(file => file.originalname);
       // Cloudinary returns the URL in the path property
       const file_urls = req.files.map(file => file.path); 
@@ -295,10 +295,49 @@ courseRepRouter.post('/api/course-rep/classrooms/:classroomId/course-sections/:c
         classroom_id: classroomId,
       });
 
-      res.json({ message: 'Past Question uploaded successfully', past_question: newPastQuestion });
+      res.status(201).json(
+        { message: 'Past Question uploaded successfully', past_question: newPastQuestion });
     } catch (error) {
       console.error('Error uploading past question:', error);
       res.status(500).json({ error: 'Failed to upload past question' });
+    }
+  }
+);
+// Route for creating an announcement
+courseRepRouter.post('/api/course-rep/classrooms/:classroomId/announcements', 
+  auth, 
+  authorizeRole(['course_rep']), 
+  async (req, res) => {
+    const { classroomId } = req.params;
+    const { content } = req.body;
+
+    try {
+      const classroom = await Classroom.findOne({
+        where: {
+          classroom_id: classroomId,
+          course_rep_id: req.user.user_id,
+        },
+      });
+
+      if (!classroom) {
+        return res.status(404).json({ error: 'Classroom not found or you are not authorized' });
+      }
+
+      const now = new Date();
+      const announcement = await Announcement.create({
+        content,
+        classroom_id: classroomId,
+        date: now,
+        time: now.toTimeString().split(' ')[0], 
+      });
+
+      res.status(201).json({
+        message: 'Announcement created successfully',
+        announcement,
+      });
+    } catch (error) {
+      console.error('Error creating announcement:', error);
+      res.status(500).json({ error: 'An error occurred while creating the announcement' });
     }
   }
 );
