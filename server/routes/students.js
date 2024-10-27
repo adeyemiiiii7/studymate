@@ -25,6 +25,7 @@ studentRouter.post('/classrooms/join', auth , authorizeRole(['student']), async 
     await ClassroomStudent.create({
       student_id: req.user.user_id,
       classroom_id: classroom.classroom_id,
+      
     });
     res.status(200).json({ message: 'Joined classroom successfully' });
   } catch (error) {
