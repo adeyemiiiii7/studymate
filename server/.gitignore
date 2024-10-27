@@ -1,2 +1,2 @@
 .env
-.server/C:pg_schema.sql
+pg_schema.sql
