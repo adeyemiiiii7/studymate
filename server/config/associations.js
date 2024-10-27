@@ -2,7 +2,7 @@ const User = require('../models/user');
 const Classroom = require('../models/classroom');
 const ClassroomStudent = require('../models/classroomStudent');
 const CourseSection = require('../models/courseSection');
-const Slide = require('../models/slides'); 
+const Slide = require('../models/slides');
 
 function setupAssociations() {
   // Many-to-Many: User <-> Classroom (via ClassroomStudent)
@@ -10,13 +10,13 @@ function setupAssociations() {
     through: ClassroomStudent, 
     foreignKey: 'student_id', 
     otherKey: 'classroom_id',
-    as: 'classrooms'
+    as: 'classrooms' 
   });
   Classroom.belongsToMany(User, { 
     through: ClassroomStudent, 
     foreignKey: 'classroom_id', 
     otherKey: 'student_id',
-    as: 'students' // Alias for accessing students in a classroom
+    as: 'students'
   });
 
   // Defining ClassroomStudent associations for clarity
@@ -31,10 +31,11 @@ function setupAssociations() {
   Classroom.hasMany(CourseSection, { as: 'courseSections', foreignKey: 'classroom_id' });
   CourseSection.belongsTo(Classroom, { foreignKey: 'classroom_id', as: 'classroom' });
 
+  // One-to-Many: Classroom and Slides
   Classroom.hasMany(Slide, { as: 'slides', foreignKey: 'classroom_id' });
- Slide.belongsTo(Classroom, { foreignKey: 'classroom_id', as: 'classroom' });
+  Slide.belongsTo(Classroom, { foreignKey: 'classroom_id', as: 'classroom' });
 
-
+  // One-to-Many: CourseSection and Slides
   CourseSection.hasMany(Slide, { foreignKey: 'course_section_id', as: 'slides' });
   Slide.belongsTo(CourseSection, { foreignKey: 'course_section_id', as: 'courseSection' });
 }
