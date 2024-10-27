@@ -10,6 +10,10 @@ const Slide = require('../models/slides');
 const upload = require('../middleware/upload');
 const PastQuestion = require('../models/pastQuestions');
 const Announcement = require('../models/announcements');
+// const Leaderboard = require('../models/leaderboard');
+const User = require('../models/user');
+const {fetchLeaderboard} = require('../utils/fetchLeaderboard');
+const ClassroomStudent = require('../models/classroomStudent');
 // Route for creating a classroom
 courseRepRouter.post('/api/course-rep/classrooms/create', auth, authorizeRole(['course_rep']), async (req, res) => {
   const { name, level, department, session } = req.body;
@@ -341,6 +345,139 @@ courseRepRouter.post('/api/course-rep/classrooms/:classroomId/announcements',
     }
   }
 );
+// // Helper function to fetch leaderboard
+// async function fetchLeaderboard(classroomId) {
+//   return await Leaderboard.findAll({
+//     where: { classroom_id: classroomId },
+//     include: [{
+//       model: User,
+//       as: 'user',
+//       attributes: ['user_id', 'name', 'email'],
+//       where: { role: 'student' }, // Only include students
+//     }],
+//     order: [
+//       ['highest_streak', 'DESC'],
+//       ['current_streak', 'DESC'],
+//       ['total_active_days', 'DESC']
+//     ],
+//     limit: 10 // Top 10 students
+//   });
+// }
+// courseRepRouter.get('/api/classrooms/:classroomId/leaderboard', 
+//   auth, async (req, res) => {
+//     const { classroomId } = req.params;
 
+//     try {
+//       // Check if the user is a member of the classroom or the course rep
+//       const classroom = await Classroom.findOne({
+//         where: {
+//           classroom_id: classroomId,
+//         },
+//         include: [{
+//           model: User,
+//           as: 'students',
+//           where: { user_id: req.user.user_id }
+//         }]
+//       });
+
+//       const isCourseRep = await Classroom.findOne({
+//         where: {
+//           classroom_id: classroomId,
+//           course_rep_id: req.user.user_id,
+//         },
+//       });
+
+//       if (!classroom && !isCourseRep) {
+//         return res.status(403).json({ error: 'You are not authorized to view this leaderboard' });
+//       }
+
+//       let leaderboard = await fetchLeaderboard(classroomId);
+
+//       // Format the leaderboard data
+//       leaderboard = leaderboard.map((entry, index) => ({
+//         rank: index + 1,
+//         name: entry.user.name,
+//         currentStreak: entry.current_streak,
+//         highestStreak: entry.highest_streak
+//       }));
+
+//       res.status(200).json({
+//         message: 'Leaderboard fetched successfully',
+//         leaderboard,
+//       });
+//     } catch (error) {
+//       console.error('Error Fetching Leaderboard:', error);
+//       res.status(500).json({ error: 'An error occurred while fetching the leaderboard' });
+//     }
+// });
+// Update the leaderboard endpoint
+courseRepRouter.get('/api/course-rep/classrooms/:classroomId/leaderboard', 
+  auth, 
+  authorizeRole(['course_rep']), 
+  async (req, res) => {
+    const { classroomId } = req.params;
+
+    try {
+      // console.log('User ID:', req.user.user_id);
+      // console.log('Classroom ID:', classroomId);
+
+      // Check if the user is a course rep for this classroom
+      const isCourseRep = await Classroom.findOne({
+        where: {
+          classroom_id: classroomId,
+          course_rep_id: req.user.user_id,
+        },
+      });
+
+      if (!isCourseRep) {
+        console.log('User is not a course rep for this classroom. Classroom ID:', classroomId, 'User ID:', req.user.user_id);
+      } else {
+        console.log('User is a course rep for this classroom.');
+      }
+
+      // Check if the user is a student in this classroom
+      const isStudent = await ClassroomStudent.findOne({
+        where: {
+          classroom_id: classroomId,
+          student_id: req.user.user_id
+        }
+      });
+
+      if (!isStudent) {
+        console.log('User is not a student in this classroom. Classroom ID:', classroomId, 'User ID:', req.user.user_id);
+      } else {
+        console.log('User is a student in this classroom.');
+      }
+
+      if (!isCourseRep && !isStudent) {
+        return res.status(403).json({ 
+          error: 'You are not authorized to view this leaderboard' 
+        });
+      }
+
+      // Fetch leaderboard data
+      const leaderboard = await fetchLeaderboard(classroomId);
+      // console.log('Raw leaderboard data:', leaderboard);
+      
+
+      // Add ranking to the leaderboard data
+      const rankedLeaderboard = leaderboard.map((entry, index) => ({
+        rank: index + 1,
+        ...entry
+      }));
+
+      res.status(200).json({
+        message: 'Leaderboard fetched successfully',
+        leaderboard: rankedLeaderboard,
+      });
+
+    } catch (error) {
+      console.error('Error Fetching Leaderboard:', error);
+      res.status(500).json({ 
+        error: 'An error occurred while fetching the leaderboard',
+        details: error.message 
+      });
+    }
+});
 
 module.exports = courseRepRouter;
