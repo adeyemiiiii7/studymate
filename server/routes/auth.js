@@ -5,10 +5,14 @@ const User = require('../models/user');
 const authRouter = express.Router();
 const validator = require('validator');
 require('dotenv').config();
+const auth = require('../middleware/auth');
+const { updateStreak } = require('../utils/updateStreak');
+
+
 
 authRouter.post('/users/signup', async (req, res) => {
   try {
-    const { name, email, password, level } = req.body;
+    const { first_name ,last_name, email, password, level } = req.body;
     const trimmedEmail = email.trim();
     console.log(`Received email: '${trimmedEmail}'`);
     
@@ -29,7 +33,8 @@ authRouter.post('/users/signup', async (req, res) => {
     }
     const hashedPassword = await bcryptjs.hash(password, 10);
     const user = await User.create({ 
-      name,
+      first_name,
+      last_name,
       email: trimmedEmail,
       password: hashedPassword,
       role: 'student',  
@@ -39,7 +44,8 @@ authRouter.post('/users/signup', async (req, res) => {
     res.status(201).json({
       message: 'User created successfully',
       user: {
-        name: user.name,
+        first_name: user.first_name,
+        last_name: user.last_name,
         email: user.email,
         role: user.role,
         level: user.level
@@ -50,7 +56,6 @@ authRouter.post('/users/signup', async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 });
-
 authRouter.post('/users/signin', async (req, res) => {
   try {
     const { email, password } = req.body;
@@ -65,22 +70,29 @@ authRouter.post('/users/signin', async (req, res) => {
     if (!isPasswordValid) {
       return res.status(401).json({ error: 'Invalid password' });
     }
+
     // Include the user's ID in the token
     const token = jwt.sign(
       { id: user.user_id },
       process.env.JWT_SECRET || 'defaultSecret',
-      { expiresIn: '1d'
-        
-       }
+      { expiresIn: '1d' }
     );
+
+    // Update the streak when the user logs in
+    const updatedUser = await updateStreak(user.user_id);
+
     res.status(200).json({
       message: 'Sign-in successful',
       token,
       user: {
-        id: user.user_id,
-        name: user.name,
-        email: user.email,
-        role: user.role,
+        id: updatedUser.user_id,
+        first_name:updatedUser.first_name,
+        last_name: updatedUser.last_name,
+        email: updatedUser.email,
+        role: updatedUser.role,
+        current_streak: updatedUser.current_streak,
+        highest_streak: updatedUser.highest_streak,
+        total_active_days: updatedUser.total_active_days,
       },
     });
   } catch (error) {
@@ -88,4 +100,21 @@ authRouter.post('/users/signin', async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 });
+
+// authRouter.post('/update-streak', auth, async (req, res) => {
+//   try {
+//     const updatedUser = await updateStreak(req.user.user_id);
+//     res.json({
+//       message: 'Streak updated successfully',
+//       streak: {
+//         current_streak: updatedUser.current_streak,
+//         highest_streak: updatedUser.highest_streak,
+//         total_active_days: updatedUser.total_active_days,
+//       },
+//     });
+//   } catch (error) {
+//     console.error('Error updating streak:', error);
+//     res.status(500).json({ error: 'An error occurred while updating the streak' });
+//   }
+// });
 module.exports = authRouter;
