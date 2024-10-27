@@ -3,7 +3,7 @@ const sequelize = require('../config/database');
 
 const CourseSection = sequelize.define('CourseSection', {
   course_section_id: {
-    type: DataTypes.INTEGER,
+    type: DataTypes.UUID,
     primaryKey: true,
     autoIncrement: true,
   },
