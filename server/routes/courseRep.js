@@ -480,4 +480,100 @@ courseRepRouter.get('/api/course-rep/classrooms/:classroomId/leaderboard',
     }
 });
 
+// Get all students in a classroom
+courseRepRouter.get('/api/course-rep/classrooms/:classroomId/students', 
+  auth, authorizeRole(['course_rep']), async (req, res) => {
+  try {
+    const classroom = await Classroom.findOne({
+      where: {
+        classroom_id: req.params.classroomId,
+        course_rep_id: req.user.user_id
+      }
+    });
+
+    if (!classroom) {
+      return res.status(404).json({ error: 'Classroom not found or unauthorized' });
+    }
+
+    const students = await ClassroomStudent.findAll({
+      where: { classroom_id: req.params.classroomId },
+      include: [{
+        model: User,
+        attributes: ['user_id', 'name', 'email', 'level']
+      }]
+    });
+
+    res.status(200).json({
+      message: 'Students retrieved successfully',
+      students: students.map(s => s.User)
+    });
+  } catch (error) {
+    console.error('Error fetching students:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Get all past questions in a classroom
+courseRepRouter.get('/api/course-rep/classrooms/:classroomId/past-questions', 
+  auth, authorizeRole(['course_rep']), async (req, res) => {
+  try {
+    const classroom = await Classroom.findOne({
+      where: {
+        classroom_id: req.params.classroomId,
+        course_rep_id: req.user.user_id
+      }
+    });
+
+    if (!classroom) {
+      return res.status(404).json({ error: 'Classroom not found or unauthorized' });
+    }
+
+    const pastQuestions = await PastQuestion.findAll({
+      where: { classroom_id: req.params.classroomId },
+      include: [{
+        model: CourseSection,
+        attributes: ['course_title', 'course_code']
+      }]
+    });
+
+    res.status(200).json({
+      message: 'Past questions retrieved successfully',
+      pastQuestions
+    });
+  } catch (error) {
+    console.error('Error fetching past questions:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Get all announcements in a classroom
+courseRepRouter.get('/api/course-rep/classrooms/:classroomId/announcements', 
+  auth, authorizeRole(['course_rep']), async (req, res) => {
+  try {
+    const classroom = await Classroom.findOne({
+      where: {
+        classroom_id: req.params.classroomId,
+        course_rep_id: req.user.user_id
+      }
+    });
+
+    if (!classroom) {
+      return res.status(404).json({ error: 'Classroom not found or unauthorized' });
+    }
+
+    const announcements = await Announcement.findAll({
+      where: { classroom_id: req.params.classroomId },
+      order: [['date', 'DESC']]
+    });
+
+    res.status(200).json({
+      message: 'Announcements retrieved successfully',
+      announcements
+    });
+  } catch (error) {
+    console.error('Error fetching announcements:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 module.exports = courseRepRouter;
