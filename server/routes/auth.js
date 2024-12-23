@@ -8,39 +8,52 @@ require('dotenv').config();
 const auth = require('../middleware/auth');
 const { updateStreak } = require('../utils/updateStreak');
 
-
-
 authRouter.post('/users/signup', async (req, res) => {
   try {
-    const { first_name ,last_name, email, password, level } = req.body;
+    const { first_name, last_name, email, password, level, role } = req.body;
     const trimmedEmail = email.trim();
     console.log(`Received email: '${trimmedEmail}'`);
-    
+
+    // Validate email
     if (!validator.isEmail(trimmedEmail)) {
       return res.status(400).json({ error: 'Invalid email format' });
     }
-    // Check if the email ends with @student.babcock.edu.ng
+
+    // Ensure role is either "student" or "course_rep"
+    if (role !== 'student' && role !== 'course_rep') {
+      return res.status(400).json({ error: 'Invalid role. Role must be either "student" or "course_rep".' });
+    }
+
+    // Validate institutional email
     if (!trimmedEmail.endsWith('@student.babcock.edu.ng')) {
       return res.status(400).json({ error: 'Only @student.babcock.edu.ng emails are allowed' });
     }
+
+    // Check if the user already exists
     const existingUser = await User.findOne({ where: { email: trimmedEmail } });
     if (existingUser) {
-      return res.status(400).json({ message: 'Email already exists' });
+      return res.status(400).json({ error: 'Email already exists' });
     }
+
+    // Validate level
     const parsedLevel = parseInt(level, 10);
     if (isNaN(parsedLevel) || parsedLevel < 100 || parsedLevel > 600) {
       return res.status(400).json({ error: 'Invalid level. Must be an integer between 100 and 600.' });
     }
+
+    // Hash the password
     const hashedPassword = await bcryptjs.hash(password, 10);
-    const user = await User.create({ 
+
+    // Create the user
+    const user = await User.create({
       first_name,
       last_name,
       email: trimmedEmail,
       password: hashedPassword,
-      role: 'student',  
-      level: parsedLevel
+      role,
+      level: parsedLevel, // Both students and course reps have levels
     });
-    
+
     res.status(201).json({
       message: 'User created successfully',
       user: {
@@ -48,14 +61,15 @@ authRouter.post('/users/signup', async (req, res) => {
         last_name: user.last_name,
         email: user.email,
         role: user.role,
-        level: user.level
-      }
+        level: user.level,
+      },
     });
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
+
 authRouter.post('/users/signin', async (req, res) => {
   try {
     const { email, password } = req.body;
