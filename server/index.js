@@ -6,7 +6,7 @@ const courseRepRouter = require('./routes/courseRep');
 const studentRouter = require('./routes/students');
 const sequelize = require('./config/database'); 
 const setupAssociations = require('./config/associations'); 
-
+const questRouter = require('./routes/questRoute');
 const app = express();
 app.use(express.json());
 // Setup associations
@@ -18,6 +18,7 @@ app.use(morgan('combined'));
 app.use(authRouter);
 app.use(courseRepRouter);
 app.use(studentRouter);
+app.use(questRouter);
 
 sequelize
   .sync({ alter: true }) 
