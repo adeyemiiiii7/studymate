@@ -12,15 +12,40 @@ const QUEST_REWARDS = {
   learnSkill: { xp: 35, title: 'Learn something new' },
   codingPractice: { xp: 40, title: 'Practice coding' }
 };
+questRouter.get('/api/quests/status', auth, authorizeRole(['student', 'course_rep']), async (req, res) => {
+  try {
+    const user = await User.findByPk(req.user.user_id);
+    const today = new Date().toISOString().split('T')[0];
 
-questRouter.post('/api/quests/complete/:questId', auth,  authorizeRole(['student']),async (req, res) => {
+    if (!user.last_quest_reset || user.last_quest_reset !== today) {
+      user.daily_quest_status = Object.fromEntries(
+        Object.keys(QUEST_REWARDS).map(quest => [quest, false])
+      );
+      user.last_quest_reset = today;
+      await user.save();
+    }
+
+    res.json({
+      xp: user.xp,
+      questStatus: user.daily_quest_status
+    });
+  } catch (error) {
+    console.error('Error fetching quest status:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+questRouter.post('/api/quests/complete/:questId', auth, authorizeRole(['student']), async (req, res) => {
   try {
     const { questId } = req.params;
     const user = await User.findByPk(req.user.user_id);
     const today = new Date().toISOString().split('T')[0];
 
-    if (user.last_quest_reset !== today) {
-      user.daily_quest_status = {};
+    // Force reset if new day
+    if (!user.last_quest_reset || user.last_quest_reset !== today) {
+      user.daily_quest_status = Object.fromEntries(
+        Object.keys(QUEST_REWARDS).map(quest => [quest, false])
+      );
       user.last_quest_reset = today;
     }
 
@@ -34,17 +59,21 @@ questRouter.post('/api/quests/complete/:questId', auth,  authorizeRole(['student
     }
 
     user.xp += reward.xp;
-    user.daily_quest_status[questId] = true;
+    user.daily_quest_status = {
+      ...user.daily_quest_status,
+      [questId]: true
+    };
     await user.save();
 
-    res.json({ 
+    res.json({
       message: 'Quest completed',
       xp: user.xp,
       questStatus: user.daily_quest_status
     });
   } catch (error) {
+    console.error('Error completing quest:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
-
+  
 module.exports = questRouter;
