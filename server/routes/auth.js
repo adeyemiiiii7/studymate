@@ -107,6 +107,7 @@ authRouter.post('/users/signin', async (req, res) => {
         current_streak: updatedUser.current_streak,
         highest_streak: updatedUser.highest_streak,
         total_active_days: updatedUser.total_active_days,
+        xp: updatedUser.xp,
       },
     });
   } catch (error) {
