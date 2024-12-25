@@ -68,9 +68,9 @@ const User = sequelize.define('User', {
   },
   last_quest_reset: {
     type: DataTypes.DATEONLY,
-    allowNull: true,
+    allowNull: true
   }
-}, {
+},{
   tableName: 'Users',
   timestamps: true,
 });
