@@ -1,45 +1,59 @@
 const { Op } = require('sequelize');
-const User = require('../models/user');const updateStreak = async (userId) => {
+const User = require('../models/user');
+
+const updateStreak = async (userId) => {
   const user = await User.findByPk(userId);
   if (!user) {
     throw new Error('User not found');
   }
 
-  const today = new Date().toISOString().split('T')[0];
+  // Use UTC dates to avoid timezone issues
+  const now = new Date();
+  const today = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
   const yesterday = new Date(today);
-  yesterday.setDate(yesterday.getDate() - 1);
-  const yesterdayString = yesterday.toISOString().split('T')[0];
+  yesterday.setUTCDate(yesterday.getUTCDate() - 1);
 
   const userLastActiveDate = user.last_active_date
-    ? new Date(user.last_active_date).toISOString().split('T')[0]
+    ? new Date(Date.UTC(
+        new Date(user.last_active_date).getUTCFullYear(),
+        new Date(user.last_active_date).getUTCMonth(),
+        new Date(user.last_active_date).getUTCDate()
+      ))
     : null;
 
-  console.log('Today:', today);
-  console.log('Yesterday:', yesterdayString);
-  console.log('Last Active Date:', userLastActiveDate);
+  // Convert dates to ISO strings for comparison
+  const todayStr = today.toISOString().split('T')[0];
+  const yesterdayStr = yesterday.toISOString().split('T')[0];
+  const lastActiveDateStr = userLastActiveDate?.toISOString().split('T')[0];
 
-  if (userLastActiveDate === today) {
-    console.log('User already active today. Skipping streak update.');
+  console.log('Today (UTC):', todayStr);
+  console.log('Yesterday (UTC):', yesterdayStr);
+  console.log('Last Active Date (UTC):', lastActiveDateStr);
+
+  // Skip if already logged in today
+  if (lastActiveDateStr === todayStr) {
+    console.log('User already active today. No streak update needed.');
     return user;
   }
 
-  if (!userLastActiveDate) {
+  // Update streak logic
+  if (!lastActiveDateStr) {
     console.log('First activity detected.');
     user.current_streak = 1;
     user.highest_streak = 1;
     user.total_active_days = 1;
-  } else if (userLastActiveDate === yesterdayString) {
+  } else if (lastActiveDateStr === yesterdayStr) {
     console.log('User was active yesterday. Incrementing streak.');
     user.current_streak += 1;
     user.highest_streak = Math.max(user.current_streak, user.highest_streak);
     user.total_active_days += 1;
   } else {
-    console.log('User was not active yesterday. Resetting streak.');
+    console.log('Break in streak detected. Resetting to 1.');
     user.current_streak = 1;
     user.total_active_days += 1;
   }
 
-  user.last_active_date = today;
+  user.last_active_date = todayStr;
   await user.save();
 
   return user;
