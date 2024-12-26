@@ -48,7 +48,7 @@ questRouter.get('/api/quests/status', auth, authorizeRole(['student', 'course_re
   }
 });
 
-questRouter.post('/api/quests/complete/:questId', auth, authorizeRole(['student']), async (req, res) => {
+questRouter.post('/api/quests/complete/:questId', auth, authorizeRole(['student', 'course_rep']), async (req, res) => {
   try {
     const { questId } = req.params;
     const user = await User.findByPk(req.user.user_id);
