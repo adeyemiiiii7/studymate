@@ -14,6 +14,60 @@ const Announcement = require('../models/announcements');
 const User = require('../models/user');
 const {fetchLeaderboard} = require('../utils/fetchLeaderboard');
 const ClassroomStudent = require('../models/classroomStudent');
+
+
+courseRepRouter.get('/api/course-rep/profile', auth, authorizeRole(['course_rep']), async (req, res) => {
+  try {
+    const user = await User.findOne({
+      where: { 
+        user_id: req.user.user_id,
+        role: 'course_rep'
+      },
+      attributes: [
+        'user_id',
+        'first_name', 
+        'last_name',
+        'email',
+        'level',
+        'role',
+        'current_streak',
+        'highest_streak',
+        'total_active_days',
+        'xp'
+      ]
+    });
+
+    if (!user) {
+      return res.status(404).json({ error: 'Course representative not found' });
+    }
+
+    res.status(200).json({
+      message: 'Profile fetched successfully',
+      user
+    });
+  } catch (error) {
+    console.error('Error fetching profile:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+courseRepRouter.put('/api/course-rep/profile/update', auth, authorizeRole(['course_rep']), async (req, res) => {
+  try {
+    const { first_name, last_name } = req.body;
+
+    await User.update(
+      { first_name, last_name },
+      { where: { user_id: req.user.user_id, role: 'course_rep' } }
+    );
+
+    res.status(200).json({
+      message: 'Profile updated successfully'
+    });
+  } catch (error) {
+    console.error('Error updating profile:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
 // Route for creating a classroom
 courseRepRouter.post('/api/course-rep/classrooms/create', auth, authorizeRole(['course_rep']), async (req, res) => {
   const { name, level, department, session } = req.body;
