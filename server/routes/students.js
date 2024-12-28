@@ -8,6 +8,56 @@ const CourseSection = require('../models/courseSection');
 const Slide = require('../models/slides');
 const PastQuestion = require('../models/pastQuestions');
 const Announcement = require('../models/announcements');
+const User = require('../models/user');
+const { where } = require('sequelize');
+const courseRepRouter = require('./courseRep');
+
+
+studentRouter.get('/api/student/profile', auth, authorizeRole(['student']), async (req, res) => {
+  try {
+    const user = await User.findOne({
+    where: { 
+      user_id: req.user.user_id,
+      role: 'student'
+    },
+    attributes: 
+    ['first_name', 'last_name', 'email', 'level', 'xp', 'current_streak', 'highest_streak', 'total_active_days', 'role'
+
+    ]
+  });
+  if (!user) {
+    return res.status(404).json({ error: 'Student profile not found' });
+  }
+  res.status(200).json({
+    message: 'Student profile retrieved successfully',
+    user
+  });
+} catch (error) {
+  console.error('Error fetching student profile:', error);
+  res.status(500).json({ error: 'Internal server error' });
+}
+});
+
+studentRouter.put('/api/student/profile/update', auth, authorizeRole(['student']), async (req, res) => {
+  try {
+    const { first_name, last_name, level } = req.body;
+
+    await User.update(
+     { first_name, last_name, level },
+     { where: { user_id: req.user.user_id, role: 'student' } }
+    );
+
+    res.status(200).json({
+       message: 'Profile updated successfully' 
+      });
+
+  } catch (error) {
+    console.error('Error updating student profile:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+
 
 // Join a classroom
 studentRouter.post('/api/student/classrooms/join', auth, authorizeRole(['student']), async (req, res) => {
