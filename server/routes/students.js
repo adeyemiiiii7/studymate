@@ -21,7 +21,7 @@ studentRouter.get('/api/student/profile', auth, authorizeRole(['student']), asyn
       role: 'student'
     },
     attributes: 
-    ['first_name', 'last_name', 'email', 'level', 'xp', 'current_streak', 'highest_streak', 'total_active_days', 'role'
+    ['first_name', 'last_name', 'email', 'level', 'xp', 'current_streak', 'highest_streak', 'total_active_days', 'role','daily_quest_status'
 
     ]
   });
