@@ -61,16 +61,22 @@ const User = sequelize.define('User', {
       completeQuiz: false,
       studySession: false,
       readSlides: false,
-      followSchedule: false, 
+      followSchedule: false,
       learnSkill: false,
-      codingPractice: false
+      codingPractice: false,
+      personalQuests: {}
     },
+  },
+  hidden_quests: {
+    type: DataTypes.ARRAY(DataTypes.STRING),
+    defaultValue: [],
+    allowNull: false,
   },
   last_quest_reset: {
     type: DataTypes.DATEONLY,
     allowNull: true
   }
-},{
+}, {
   tableName: 'Users',
   timestamps: true,
 });
