@@ -1,4 +1,3 @@
-// quest-router.js
 const express = require('express');
 const questRouter = express.Router();
 const auth = require('../middleware/auth');
@@ -12,35 +11,58 @@ const QUEST_REWARDS = {
   readSlides: { xp: 25, title: 'Read course slides' },
   followSchedule: { xp: 20, title: 'Follow study timetable' },
   learnSkill: { xp: 35, title: 'Learn something new' },
-  codingPractice: { xp: 40, title: 'Practice coding' }
+  codingPractice: { xp: 40, title: 'Practiced a new' }
 };
 
+
+// Get all quests status (both system and personal)
 questRouter.get('/api/quests/status', auth, authorizeRole(['student', 'course_rep']), async (req, res) => {
   try {
     const user = await User.findByPk(req.user.user_id);
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
     
-    // Get UTC date
     const now = new Date();
     const today = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()))
       .toISOString()
       .split('T')[0];
-
-    // Always check and update streak when fetching quest status
+    
     await updateStreak(req.user.user_id);
-
-    // Reset quests if it's a new day or no reset date
+    
+    // Initialize or reset quests if it's a new day
     if (!user.last_quest_reset || user.last_quest_reset !== today) {
-      console.log('Resetting daily quests');
-      user.daily_quest_status = Object.fromEntries(
-        Object.keys(QUEST_REWARDS).map(quest => [quest, false])
+      // Get user's hidden quests
+      const hiddenQuests = user.hidden_quests || [];
+      
+      // Filter out hidden quests from default quests
+      const visibleDefaultQuests = Object.entries(QUEST_REWARDS)
+        .filter(([questId]) => !hiddenQuests.includes(questId))
+        .reduce((acc, [key, value]) => ({ ...acc, [key]: false }), {});
+      
+      const defaultStatus = {
+        ...visibleDefaultQuests,
+        personalQuests: {} // Reset personal quests each day
+      };
+      
+      await User.update(
+        {
+          daily_quest_status: defaultStatus,
+          last_quest_reset: today
+        },
+        {
+          where: { user_id: user.user_id },
+          returning: true
+        }
       );
-      user.last_quest_reset = today;
-      await user.save();
+      
+      user.daily_quest_status = defaultStatus;
     }
-
+    
     res.json({
       xp: user.xp,
-      questStatus: user.daily_quest_status
+      questStatus: user.daily_quest_status,
+      hiddenQuests: user.hidden_quests || []
     });
   } catch (error) {
     console.error('Error fetching quest status:', error);
@@ -48,49 +70,199 @@ questRouter.get('/api/quests/status', auth, authorizeRole(['student', 'course_re
   }
 });
 
+// Delete quest (both default and personal)
+questRouter.delete('/api/quests/:questId', auth, authorizeRole(['student', 'course_rep']), async (req, res) => {
+  try {
+    const { questId } = req.params;
+    const user = await User.findByPk(req.user.user_id);
+    
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    const dailyQuestStatus = { ...user.daily_quest_status };
+    const hiddenQuests = [...(user.hidden_quests || [])];
+
+    // Handle personal quest deletion
+    if (dailyQuestStatus.personalQuests?.[questId]) {
+      delete dailyQuestStatus.personalQuests[questId];
+    } 
+    // Handle default quest deletion
+    else if (QUEST_REWARDS[questId]) {
+      // Add to hidden quests if not already hidden
+      if (!hiddenQuests.includes(questId)) {
+        hiddenQuests.push(questId);
+      }
+      // Remove from daily quest status
+      delete dailyQuestStatus[questId];
+    } else {
+      return res.status(404).json({ error: 'Quest not found' });
+    }
+
+    // Update user with the modified quest status and hidden quests
+    const [updatedRows] = await User.update(
+      { 
+        daily_quest_status: dailyQuestStatus,
+        hidden_quests: hiddenQuests
+      },
+      {
+        where: { user_id: user.user_id },
+        returning: true
+      }
+    );
+
+    if (updatedRows === 0) {
+      throw new Error('Failed to update user quest status');
+    }
+    
+    res.json({
+      message: 'Quest deleted successfully',
+      updatedQuestStatus: dailyQuestStatus,
+      hiddenQuests
+    });
+  } catch (error) {
+    console.error('Error deleting quest:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Add personal quest
+questRouter.post('/api/quests/add', auth, authorizeRole(['student', 'course_rep']), async (req, res) => {
+  try {
+    const { title, description } = req.body;
+    
+    if (!title || !description) {
+      return res.status(400).json({ error: 'Title and description are required' });
+    }
+
+    const user = await User.findByPk(req.user.user_id);
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    const now = new Date();
+    const today = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()))
+      .toISOString()
+      .split('T')[0];
+    
+    const questId = Date.now().toString();
+    const dailyQuestStatus = { ...user.daily_quest_status };
+    
+    if (!dailyQuestStatus.personalQuests) {
+      dailyQuestStatus.personalQuests = {};
+    }
+
+    // Add new personal quest
+    dailyQuestStatus.personalQuests[questId] = {
+      title,
+      description,
+      completed: false,
+      xp_reward: 50,
+      created_at: today
+    };
+
+    // Update the user with the new quest status
+    const [updatedRows] = await User.update(
+      { daily_quest_status: dailyQuestStatus },
+      {
+        where: { user_id: user.user_id },
+        returning: true
+      }
+    );
+
+    if (updatedRows === 0) {
+      throw new Error('Failed to update user quest status');
+    }
+    
+    res.status(201).json({
+      message: 'Personal quest added successfully',
+      quest: {
+        id: questId,
+        title,
+        description,
+        xp_reward: 50,
+        created_at: today
+      }
+    });
+  } catch (error) {
+    console.error('Error adding personal quest:', error);
+    res.status(500).json({ error: 'Internal server error', details: error.message });
+  }
+});
+
+
+
+// Complete quest (both system and personal)
 questRouter.post('/api/quests/complete/:questId', auth, authorizeRole(['student', 'course_rep']), async (req, res) => {
   try {
     const { questId } = req.params;
     const user = await User.findByPk(req.user.user_id);
     
-    // Get UTC date
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
     const now = new Date();
     const today = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()))
       .toISOString()
       .split('T')[0];
-
+    
     // Update streak when completing a quest
     await updateStreak(req.user.user_id);
+    
+    const dailyQuestStatus = { ...user.daily_quest_status };
+    let xpGained = 0;
 
-    // Force reset if new day
-    if (!user.last_quest_reset || user.last_quest_reset !== today) {
-      user.daily_quest_status = Object.fromEntries(
-        Object.keys(QUEST_REWARDS).map(quest => [quest, false])
-      );
-      user.last_quest_reset = today;
+    // Handle system quest completion
+    if (QUEST_REWARDS[questId]) {
+      if (dailyQuestStatus[questId]) {
+        return res.status(400).json({ error: 'Quest already completed today' });
+      }
+      
+      xpGained = QUEST_REWARDS[questId].xp;
+      dailyQuestStatus[questId] = true;
+    } 
+    // Handle personal quest completion
+    else {
+      const personalQuest = dailyQuestStatus.personalQuests?.[questId];
+      if (!personalQuest) {
+        return res.status(404).json({ error: 'Personal quest not found' });
+      }
+      
+      if (personalQuest.completed) {
+        return res.status(400).json({ error: 'Personal quest already completed' });
+      }
+      
+      if (personalQuest.created_at !== today) {
+        return res.status(400).json({ error: 'Personal quest expired' });
+      }
+      
+      xpGained = personalQuest.xp_reward;
+      dailyQuestStatus.personalQuests[questId].completed = true;
     }
+    
+    // Update user with new XP and quest status
+    const [updatedRows] = await User.update(
+      {
+        xp: user.xp + xpGained,
+        daily_quest_status: dailyQuestStatus,
+        last_quest_reset: today
+      },
+      {
+        where: { user_id: user.user_id },
+        returning: true
+      }
+    );
 
-    if (user.daily_quest_status[questId]) {
-      return res.status(400).json({ error: 'Quest already completed today' });
+    if (updatedRows === 0) {
+      throw new Error('Failed to update user quest status');
     }
-
-    const reward = QUEST_REWARDS[questId];
-    if (!reward) {
-      return res.status(400).json({ error: 'Invalid quest' });
-    }
-
-    user.xp += reward.xp;
-    user.daily_quest_status = {
-      ...user.daily_quest_status,
-      [questId]: true
-    };
-    user.last_quest_reset = today;
-    await user.save();
-
+    
     res.json({
-      message: 'Quest completed',
-      xp: user.xp,
-      questStatus: user.daily_quest_status
+      message: 'Quest completed successfully',
+      xp: user.xp + xpGained,
+      xpGained,
+      questStatus: dailyQuestStatus
     });
   } catch (error) {
     console.error('Error completing quest:', error);
