@@ -39,10 +39,11 @@ questRouter.get('/api/quests/status', auth, authorizeRole(['student', 'course_re
       const visibleDefaultQuests = Object.entries(QUEST_REWARDS)
         .filter(([questId]) => !hiddenQuests.includes(questId))
         .reduce((acc, [key, value]) => ({ ...acc, [key]: false }), {});
-      
+        
+      // Reset quests for the new day
       const defaultStatus = {
         ...visibleDefaultQuests,
-        personalQuests: {} // Reset personal quests each day
+        personalQuests: {} // Reset personal quests
       };
       
       await User.update(
