@@ -185,7 +185,37 @@ courseRepRouter.get('/api/course-rep/classrooms',
     res.status(500).json({ error: 'An error occurred while fetching classrooms' });
   }
 });
+// Route to get a specific classroom details
+courseRepRouter.get('/api/course-rep/classrooms/:classroomId', 
+  auth, 
+  authorizeRole(['course_rep']), 
+  async (req, res) => {
+    const { classroomId } = req.params;
 
+    try {
+      const classroom = await Classroom.findOne({
+        where: {
+          classroom_id: classroomId,
+          course_rep_id: req.user.user_id
+        },
+        attributes: ['classroom_id', 'name', 'level', 'department', 'session']
+      });
+
+      if (!classroom) {
+        return res.status(404).json({ 
+          error: 'Classroom not found or you do not have permission to access it' 
+        });
+      }
+
+      res.status(200).json({
+        message: 'Classroom fetched successfully',
+        classroom
+      });
+    } catch (error) {
+      console.error('Error fetching classroom:', error);
+      res.status(500).json({ error: 'Internal server error' });
+    }
+});
 // Route to fetch sections under a specific classroom
 courseRepRouter.get('/api/course-rep/classrooms/:classroomId/sections', 
   auth, authorizeRole(['course_rep']), async (req, res) => {
