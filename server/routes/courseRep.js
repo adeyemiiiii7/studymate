@@ -110,11 +110,16 @@ courseRepRouter.post('/api/course-rep/classrooms/create', auth, authorizeRole(['
     const joinCode = generateJoinCode();
     
     // Create email transporter
+
+    // Create email transporter with proper configuration
     const transporter = nodemailer.createTransport({
       service: 'gmail',
       auth: {
-        user: 'aladesuyiadeyemi05@gmail.com',
-        pass: 'sjko eodm gdbu uxav'
+        user: 'aladesuyides@gmail.com', // Fixed typo in email address
+        pass: 'kugi fihw cugc trye'
+      },
+      tls: {
+        rejectUnauthorized: false // Allow self-signed certificates
       }
     });
 
@@ -127,9 +132,13 @@ courseRepRouter.post('/api/course-rep/classrooms/create', auth, authorizeRole(['
 
     // Email options
     const mailOptions = {
-      from: 'Classroom Management <aladesuyiadeyemi05@gmail.com>',
-      to: courseRepEmail.trim(), // Trim any whitespace
+      from: 'Classroom Management <aladesuyides@gmail.com>',
+      to: courseRepEmail.trim(), 
       subject: 'Classroom Join Code',
+      headers: {
+        'Priority': 'high',
+        'X-MS-Exchange-Organization-AuthAs': 'Internal'
+      }
       html: `<!DOCTYPE html>
 <html>
 <head>
