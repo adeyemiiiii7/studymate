@@ -9,8 +9,7 @@ const Slide = require('../models/slides');
 const PastQuestion = require('../models/pastQuestions');
 const Announcement = require('../models/announcements');
 const User = require('../models/user');
-const { where } = require('sequelize');
-const courseRepRouter = require('./courseRep');
+
 
 
 studentRouter.get('/api/student/profile', auth, authorizeRole(['student']), async (req, res) => {

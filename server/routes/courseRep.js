@@ -68,7 +68,7 @@ courseRepRouter.put('/api/course-rep/profile/update', auth, authorizeRole(['cour
     res.status(500).json({ error: 'Internal server error' });
   }
 });
-// Route for creating a classroom
+
 courseRepRouter.post('/api/course-rep/classrooms/create', auth, authorizeRole(['course_rep']), async (req, res) => {
   const { name, level, department, session } = req.body;
   try {
@@ -79,6 +79,7 @@ courseRepRouter.post('/api/course-rep/classrooms/create', auth, authorizeRole(['
     }
 
     const courseRepEmail = req.user.email;
+    console.log('Course Rep Email:', courseRepEmail);
     const existingClassroom = await Classroom.findOne({
       where: {
         name,
@@ -106,15 +107,17 @@ courseRepRouter.post('/api/course-rep/classrooms/create', auth, authorizeRole(['
       service: 'gmail',
       auth: {
         user: 'aladesuyiadeyemi05@gmail.com',
-        pass: 'qtpc ezqc uoyu jvst'
+        pass: 'sjko eodm gdbu uxav'
       }
     });
     const mailOptions = {
       from: 'Classroom Management <aladesuyiadeyemi05@gmail.com>',
+      
       to: courseRepEmail,
       subject: 'Classroom Join Code',
       html: `<p>Your classroom "${name}" has been created successfully. The join code is: <strong>${joinCode}</strong></p>`
     };
+    console.log("Sending email to:", courseRepEmail);
     transporter.sendMail(mailOptions, function (error, info) {
       if (error) {
         console.error('Error sending email:', error);
