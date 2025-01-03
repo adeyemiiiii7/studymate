@@ -1,22 +1,23 @@
 {
+  
     "development": {
-      "username": "studymate_user",
+      "username": "adeyemi_user",
       "password": "adeyemi05$",
-      "database": "studymate_db",
-      "host": "127.0.0.1",
+      "database": "studymate",
+      "host": "localhost",
       "dialect": "postgres"
     },
     "test": {
-      "username": "studymate_db",
+     "username": "adeyemi_user",
       "password": "adeyemi05$",
-      "database": "studymate_db",
+      "database": "studymate",
       "host": "127.0.0.1",
       "dialect": "postgres"
     },
     "production": {
-      "username": "studymate_db",
+      "username": "adeyemi_user",
       "password": "adeyemi05$",
-      "database": "adeyemi05$",
+      "database": "studymate",
       "host": "127.0.0.1",
       "dialect": "postgres"
     }
