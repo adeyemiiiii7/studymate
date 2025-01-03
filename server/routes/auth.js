@@ -7,6 +7,9 @@ const validator = require('validator');
 require('dotenv').config();
 const auth = require('../middleware/auth');
 const { updateStreak } = require('../utils/updateStreak');
+const { Novu } = require('@novu/node');
+
+const novu = new Novu('32a0287b127dff3f4a2039298d9a13e7');
 
 authRouter.post('/users/signup', async (req, res) => {
   try {
@@ -54,6 +57,7 @@ authRouter.post('/users/signup', async (req, res) => {
       level: parsedLevel, // Both students and course reps have levels
     });
 
+    
     res.status(201).json({
       message: 'User created successfully',
       user: {
