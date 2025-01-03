@@ -98,30 +98,159 @@ studentRouter.post('/api/student/classrooms/join', auth, authorizeRole(['student
     res.status(500).json({ error: 'Internal server error' });
   }
 });
+studentRouter.get('/api/student/classrooms', 
+  auth, 
+  authorizeRole(['student']), 
+  async (req, res) => {
+    try {
+      const user = await User.findOne({
+        where: { user_id: req.user.user_id },
+        include: [{
+          model: Classroom,
+          as: 'classrooms',
+          through: { attributes: [] }, // Exclude junction table attributes
+          include: [{
+            model: CourseSection,
+            as: 'courseSections',
+            attributes: ['course_section_id', 'course_title', 'course_code']
+          }],
+          attributes: [
+            'classroom_id',
+            'name',
+            'level',
+            'department',
+            'session'
+          ]
+        }]
+      });
+
+      if (!user) {
+        return res.status(404).json({
+          error: 'User not found'
+        });
+      }
+
+      res.status(200).json({
+        message: 'Classrooms retrieved successfully',
+        classrooms: user.classrooms
+      });
+    } catch (error) {
+      console.error('Error fetching classrooms:', error);
+      res.status(500).json({ error: 'Internal server error' });
+    }
+});
 
 // Get all classrooms the student is enrolled in
-studentRouter.get('/api/student/classrooms', auth, authorizeRole(['student']), async (req, res) => {
-  try {
-    const studentClassrooms = await ClassroomStudent.findAll({
-      where: { student_id: req.user.user_id },
-      include: [{
-        model: Classroom,
+studentRouter.get('/api/student/classrooms/:classroomId', 
+  auth, 
+  authorizeRole(['student']), 
+  async (req, res) => {
+    const { classroomId } = req.params;
+    
+    try {
+      // First verify the student is part of this classroom
+      const classroomStudent = await ClassroomStudent.findOne({
+        where: {
+          student_id: req.user.user_id,
+          classroom_id: classroomId
+        }
+      });
+
+      if (!classroomStudent) {
+        return res.status(404).json({
+          error: 'Classroom not found or you do not have permission to access it'
+        });
+      }
+
+      // Then fetch the classroom details
+      const classroom = await Classroom.findOne({
+        where: { classroom_id: classroomId },
+        attributes: [
+          'classroom_id',
+          'name',
+          'level',
+          'department',
+          'session'
+        ],
         include: [{
           model: CourseSection,
           as: 'courseSections',
           attributes: ['course_section_id', 'course_title', 'course_code']
         }]
-      }]
-    });
+      });
 
-    res.status(200).json({
-      message: 'Classrooms retrieved successfully',
-      classrooms: studentClassrooms.map(sc => sc.Classroom)
-    });
-  } catch (error) {
-    console.error('Error fetching classrooms:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
+      if (!classroom) {
+        return res.status(404).json({
+          error: 'Classroom not found'
+        });
+      }
+
+      res.status(200).json({
+        message: 'Classroom fetched successfully',
+        classroom
+      });
+    } catch (error) {
+      console.error('Error fetching classroom:', error);
+      res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+// Add the sections route
+studentRouter.get('/api/student/classrooms/:classroomId/sections',
+  auth,
+  authorizeRole(['student']),
+  async (req, res) => {
+    const { classroomId } = req.params;
+    
+    try {
+      // First verify the student is part of this classroom
+      const classroomStudent = await ClassroomStudent.findOne({
+        where: {
+          student_id: req.user.user_id,
+          classroom_id: classroomId
+        }
+      });
+
+      if (!classroomStudent) {
+        return res.status(404).json({
+          error: 'Classroom not found or you do not have permission to access it'
+        });
+      }
+
+      const sections = await CourseSection.findAll({
+        where: { classroom_id: classroomId },
+        attributes: ['course_section_id', 'course_title', 'course_code']
+      });
+
+      res.status(200).json({
+        message: 'Sections fetched successfully',
+        sections
+      });
+    } catch (error) {
+      console.error('Error fetching sections:', error);
+      res.status(500).json({ error: 'Internal server error' });
+    }
+});
+studentRouter.get('/api/student/classrooms/:classroomId/sections',
+  auth,
+  authorizeRole(['student']),
+  async (req, res) => {
+    const { classroomId } = req.params;
+    
+    try {
+      const sections = await CourseSection.findAll({
+        where: { classroom_id: classroomId },
+        attributes: ['course_section_id', 'course_title', 'course_code']
+      });
+
+      res.status(200).json({
+        message: 'Sections fetched successfully',
+        sections
+      });
+    } catch (error) {
+      console.error('Error fetching sections:', error);
+      res.status(500).json({ error: 'Internal server error' });
+    }
 });
 
 // Get course sections in a classroom
