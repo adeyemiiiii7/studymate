@@ -138,7 +138,7 @@ courseRepRouter.post('/api/course-rep/classrooms/create', auth, authorizeRole(['
       headers: {
         'Priority': 'high',
         'X-MS-Exchange-Organization-AuthAs': 'Internal'
-      }
+      },
       html: `<!DOCTYPE html>
 <html>
 <head>
@@ -446,35 +446,37 @@ courseRepRouter.get('/api/course-rep/classrooms/:classroomId/course-sections/:co
   }
 });
 
-// this might be bad practice due to large about of data being fetched
-//if implemented i should use pagination
-//  Route to fetch all classrooms, sections, and slides
-// courseRepRouter.get('/api/course-rep/classrooms-sections-slides', auth, authorizeRole(['course_rep']), async (req, res) => {
-//   try {
-//     const classrooms = await Classroom.findAll({
-//       where: { course_rep_id: req.user.user_id },
-//       attributes: ['classroom_id', 'name', 'level', 'department', 'session'],
-//       include: [{
-//         model: CourseSection,
-//         as: 'courseSections',
-//         attributes: ['course_section_id', 'course_title', 'course_code'],
-//         include: [{
-//           model: Slide,
-//           as: 'slides',
-//           attributes: ['slide_id', 'slide_name', 'file_name', 'file_url', 'slide_number']
-//         }]
-//       }]
-//     });
+// Route to get a specific course section's details
+courseRepRouter.get('/api/course-rep/classrooms/:classroomId/course-sections/:courseSectionId', 
+  auth, 
+  authorizeRole(['course_rep']), 
+  async (req, res) => {
+    const { classroomId, courseSectionId } = req.params;
 
-//     res.status(200).json({
-//       message: 'Classrooms, sections, and slides fetched successfully',
-//       classrooms,
-//     });
-//   } catch (error) {
-//     console.error('Error fetching classrooms, sections, and slides:', error);
-//     res.status(500).json({ error: 'An error occurred while fetching data' });
-//   }
-// });
+    try {
+      const section = await CourseSection.findOne({
+        where: {
+          course_section_id: courseSectionId,
+          classroom_id: classroomId
+        },
+        attributes: ['course_section_id', 'course_title', 'course_code']
+      });
+
+      if (!section) {
+        return res.status(404).json({ 
+          error: 'Course section not found' 
+        });
+      }
+
+      res.status(200).json({
+        message: 'Course section fetched successfully',
+        section
+      });
+    } catch (error) {
+      console.error('Error fetching course section:', error);
+      res.status(500).json({ error: 'Internal server error' });
+    }
+});
 
 
 //Route to post past questions
