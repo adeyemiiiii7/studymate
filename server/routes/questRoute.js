@@ -39,7 +39,7 @@ questRouter.get('/api/quests/status', auth, authorizeRole(['student', 'course_re
       const visibleDefaultQuests = Object.entries(QUEST_REWARDS)
         .filter(([questId]) => !hiddenQuests.includes(questId))
         .reduce((acc, [key, value]) => ({ ...acc, [key]: false }), {});
-        
+
       // Reset quests for the new day
       const defaultStatus = {
         ...visibleDefaultQuests,
@@ -175,7 +175,7 @@ questRouter.post('/api/quests/add', auth, authorizeRole(['student', 'course_rep'
       throw new Error('Failed to update user quest status');
     }
     
-    res.status(201).json({
+    res.status(200).json({
       message: 'Personal quest added successfully',
       quest: {
         id: questId,
