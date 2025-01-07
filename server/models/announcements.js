@@ -21,10 +21,22 @@ const Announcement = sequelize.define('Announcement', {
     allowNull: false,
     defaultValue: sequelize.literal('CURRENT_TIME'),
   },
+  tag: {
+    type: DataTypes.ENUM('assignment', 'resource', 'general'),
+    defaultValue: 'general',
+  },
+  files: {
+    type: DataTypes.JSONB,
+    defaultValue: [],
+  },
+  links: {
+    type: DataTypes.JSONB,
+    defaultValue: [],
+  },
   classroom_id: {
     type: DataTypes.UUID,
     references: {
-      model: 'Classrooms', 
+      model: 'Classrooms',
       key: 'classroom_id',
     },
     allowNull: false,
