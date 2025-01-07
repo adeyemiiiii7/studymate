@@ -239,7 +239,7 @@ courseRepRouter.post('/api/course-rep/classrooms/create', auth, authorizeRole(['
         course_rep_id: req.user.user_id,
       });
 
-      res.status(201).json({
+      res.status(200).json({
         message: 'Classroom created successfully and notification email sent',
         classroom,
       });
@@ -283,7 +283,7 @@ courseRepRouter.post('/api/course-rep/classrooms/:classroomId/course-sections/cr
       course_code: courseCode,
       classroom_id: classroomId,
     });
-    res.status(201).json({
+    res.status(200).json({
       message: 'Section created successfully',
       section,
     });
@@ -525,10 +525,11 @@ courseRepRouter.post('/api/course-rep/classrooms/:classroomId/course-sections/:c
 // Route for creating an announcement
 courseRepRouter.post('/api/course-rep/classrooms/:classroomId/announcements', 
   auth, 
-  authorizeRole(['course_rep']), 
+  authorizeRole(['course_rep']),
+  upload.array('files', 5),
   async (req, res) => {
     const { classroomId } = req.params;
-    const { content } = req.body;
+    const { content, tag, links } = req.body;
 
     try {
       const classroom = await Classroom.findOne({
@@ -539,92 +540,38 @@ courseRepRouter.post('/api/course-rep/classrooms/:classroomId/announcements',
       });
 
       if (!classroom) {
-        return res.status(404).json({ error: 'Classroom not found or you are not authorized' });
+        return res.status(404).json({ error: 'Classroom not found or unauthorized' });
       }
+
+      const files = req.files?.map(file => ({
+        fileName: file.originalname,
+        fileUrl: file.path
+      })) || [];
+
+      const parsedLinks = links ? JSON.parse(links) : [];
 
       const now = new Date();
       const announcement = await Announcement.create({
         content,
         classroom_id: classroomId,
         date: now,
-        time: now.toTimeString().split(' ')[0], 
+        time: now.toTimeString().split(' ')[0],
+        tag: tag || 'general',
+        files,
+        links: parsedLinks
       });
 
-      res.status(201).json({
+      res.status(200).json({
         message: 'Announcement created successfully',
         announcement,
       });
     } catch (error) {
       console.error('Error creating announcement:', error);
-      res.status(500).json({ error: 'An error occurred while creating the announcement' });
+      res.status(500).json({ error: 'Failed to create announcement' });
     }
   }
 );
-// // Helper function to fetch leaderboard
-// async function fetchLeaderboard(classroomId) {
-//   return await Leaderboard.findAll({
-//     where: { classroom_id: classroomId },
-//     include: [{
-//       model: User,
-//       as: 'user',
-//       attributes: ['user_id', 'name', 'email'],
-//       where: { role: 'student' }, // Only include students
-//     }],
-//     order: [
-//       ['highest_streak', 'DESC'],
-//       ['current_streak', 'DESC'],
-//       ['total_active_days', 'DESC']
-//     ],
-//     limit: 10 // Top 10 students
-//   });
-// }
-// courseRepRouter.get('/api/classrooms/:classroomId/leaderboard', 
-//   auth, async (req, res) => {
-//     const { classroomId } = req.params;
 
-//     try {
-//       // Check if the user is a member of the classroom or the course rep
-//       const classroom = await Classroom.findOne({
-//         where: {
-//           classroom_id: classroomId,
-//         },
-//         include: [{
-//           model: User,
-//           as: 'students',
-//           where: { user_id: req.user.user_id }
-//         }]
-//       });
-
-//       const isCourseRep = await Classroom.findOne({
-//         where: {
-//           classroom_id: classroomId,
-//           course_rep_id: req.user.user_id,
-//         },
-//       });
-
-//       if (!classroom && !isCourseRep) {
-//         return res.status(403).json({ error: 'You are not authorized to view this leaderboard' });
-//       }
-
-//       let leaderboard = await fetchLeaderboard(classroomId);
-
-//       // Format the leaderboard data
-//       leaderboard = leaderboard.map((entry, index) => ({
-//         rank: index + 1,
-//         name: entry.user.name,
-//         currentStreak: entry.current_streak,
-//         highestStreak: entry.highest_streak
-//       }));
-
-//       res.status(200).json({
-//         message: 'Leaderboard fetched successfully',
-//         leaderboard,
-//       });
-//     } catch (error) {
-//       console.error('Error Fetching Leaderboard:', error);
-//       res.status(500).json({ error: 'An error occurred while fetching the leaderboard' });
-//     }
-// });
 // Update the leaderboard endpoint
 courseRepRouter.get('/api/course-rep/classrooms/:classroomId/leaderboard', 
   auth, 
@@ -789,34 +736,59 @@ courseRepRouter.get('/api/course-rep/classrooms/:classroomId/course-sections/:co
   }
 );
 
+
 // Get all announcements in a classroom
 courseRepRouter.get('/api/course-rep/classrooms/:classroomId/announcements', 
-  auth, authorizeRole(['course_rep']), async (req, res) => {
-  try {
-    const classroom = await Classroom.findOne({
-      where: {
-        classroom_id: req.params.classroomId,
-        course_rep_id: req.user.user_id
+  auth, 
+  authorizeRole(['course_rep']), 
+  async (req, res) => {
+    const { tag, startDate, endDate } = req.query;
+    
+    try {
+      const classroom = await Classroom.findOne({
+        where: {
+          classroom_id: req.params.classroomId,
+          course_rep_id: req.user.user_id
+        }
+      });
+
+      if (!classroom) {
+        return res.status(404).json({ error: 'Classroom not found or unauthorized' });
       }
-    });
 
-    if (!classroom) {
-      return res.status(404).json({ error: 'Classroom not found or unauthorized' });
+      let whereClause = { classroom_id: req.params.classroomId };
+      
+      if (tag) {
+        whereClause.tag = tag;
+      }
+      
+      if (startDate && endDate) {
+        whereClause.date = {
+          [Op.between]: [startDate, endDate]
+        };
+      }
+
+      const announcements = await Announcement.findAll({
+        where: whereClause,
+        order: [['date', 'DESC'], ['time', 'DESC']],
+        attributes: [
+          'announcement_id',
+          'content',
+          'date',
+          'time',
+          'tag',
+          'files',
+          'links'
+        ]
+      });
+
+      res.status(200).json({
+        message: 'Announcements retrieved successfully',
+        announcements
+      });
+    } catch (error) {
+      console.error('Error fetching announcements:', error);
+      res.status(500).json({ error: 'Internal server error' });
     }
-
-    const announcements = await Announcement.findAll({
-      where: { classroom_id: req.params.classroomId },
-      order: [['date', 'DESC']]
-    });
-
-    res.status(200).json({
-      message: 'Announcements retrieved successfully',
-      announcements
-    });
-  } catch (error) {
-    console.error('Error fetching announcements:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
 });
-
 module.exports = courseRepRouter;
