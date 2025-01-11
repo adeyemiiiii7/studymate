@@ -1,14 +1,9 @@
+require('dotenv').config();  
 const { Sequelize } = require('sequelize');
 
-const sequelize = new Sequelize('studymate_4v57', 'adeyemi_user', 'amTLezXcV7CEuQQF9nkFPi3ZIGAstWfy', {
-  host: 'dpg-cu0041ij1k6c73dtjdm0-a.oregon-postgres.render.com',
+const sequelize = new Sequelize(process.env.DB_NAME, process.env.DB_USER, process.env.DB_PASSWORD, {
+  host: process.env.DB_HOST,
   dialect: 'postgres',
-  dialectOptions: {
-    ssl: {
-      require: true,
-      rejectUnauthorized: false, 
-    },
-  },
 });
 
 sequelize.authenticate()
