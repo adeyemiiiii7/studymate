@@ -7,6 +7,7 @@ const studentRouter = require('./routes/students');
 const sequelize = require('./config/database'); 
 const setupAssociations = require('./config/associations'); 
 const questRouter = require('./routes/questRoute.js');
+const wellnessRouter = require('./routes/wellness.js');
 const app = express();
 app.use(express.json());
 // Setup associations
@@ -19,6 +20,7 @@ app.use(authRouter);
 app.use(courseRepRouter);
 app.use(studentRouter);
 app.use(questRouter);
+app.use(wellnessRouter);
 
 sequelize
   .sync({ alter: true }) 
