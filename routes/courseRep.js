@@ -730,7 +730,7 @@ courseRepRouter.delete('/api/course-rep/classrooms/:classroomId/past-questions/:
 });
 // Route for creating a classroom
 courseRepRouter.post('/api/course-rep/classrooms/create', auth, authorizeRole(['course_rep']), async (req, res) => {
-  const { name, level, department, session } = req.body;
+  const { name, level, department, session, course_name } = req.body;
   try {
     console.log('Request Body:', req.body);
 
@@ -738,16 +738,29 @@ courseRepRouter.post('/api/course-rep/classrooms/create', auth, authorizeRole(['
       return res.status(400).json({ error: 'User information is missing' });
     }
 
-    // Sanitize email - remove all whitespace, control characters and normalize
+    if (!course_name) {
+      return res.status(400).json({ error: 'Course name is required' });
+    }
+
+    // Check if course rep already has an active classroom
+    const existingActiveClassroom = await Classroom.findOne({
+      where: {
+        course_rep_id: req.user.user_id,
+        is_active: true
+      }
+    });
+
+    if (existingActiveClassroom) {
+      return res.status(409).json({ 
+        error: 'You already have an active classroom. Please deactivate your current classroom before creating a new one.'
+      });
+    }
+
+    // Sanitize email
     const courseRepEmail = req.user.email
       .trim()
-      .replace(/[\x00-\x1F\x7F-\x9F]/g, '') // Remove control characters
-      .normalize('NFKC'); // Normalize Unicode characters
-
-    console.log('Original Email:', req.user.email);
-    console.log('Sanitized Email:', courseRepEmail);
-    console.log('Email Length (before):', req.user.email.length);
-    console.log('Email Length (after):', courseRepEmail.length);
+      .replace(/[\x00-\x1F\x7F-\x9F]/g, '')
+      .normalize('NFKC');
 
     if (!courseRepEmail || typeof courseRepEmail !== 'string' || !courseRepEmail.includes('@')) {
       return res.status(400).json({ error: 'Invalid course representative email' });
@@ -755,7 +768,7 @@ courseRepRouter.post('/api/course-rep/classrooms/create', auth, authorizeRole(['
 
     const existingClassroom = await Classroom.findOne({
       where: {
-        name,
+        course_name,
         level,
         department,
         session,
@@ -764,12 +777,12 @@ courseRepRouter.post('/api/course-rep/classrooms/create', auth, authorizeRole(['
     });
 
     if (existingClassroom) {
-      return res.status(409).json({ error: 'A classroom with this department and level already exists for this course representative' });
+      return res.status(409).json({ 
+        error: 'A classroom with this course, department and level already exists for this course representative' 
+      });
     }
 
     const joinCode = generateJoinCode();
-    
-    // Create email transporter
 
     // Create email transporter with proper configuration
     const transporter = nodemailer.createTransport({
@@ -869,8 +882,7 @@ courseRepRouter.post('/api/course-rep/classrooms/create', auth, authorizeRole(['
 </body>
 </html>`
     };
-    try {
-      // Send email first
+      try {
       const emailResult = await new Promise((resolve, reject) => {
         transporter.sendMail(mailOptions, (error, info) => {
           if (error) {
@@ -889,14 +901,15 @@ courseRepRouter.post('/api/course-rep/classrooms/create', auth, authorizeRole(['
         });
       });
 
-      // Only create classroom if email was sent successfully
       const classroom = await Classroom.create({
         name,
         level,
         department,
+        course_name, // Added course_name
         session,
         join_code: joinCode,
         course_rep_id: req.user.user_id,
+        is_active: true
       });
 
       res.status(200).json({
