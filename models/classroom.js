@@ -19,6 +19,10 @@ const Classroom = sequelize.define('Classroom', {
     type: DataTypes.STRING,
     allowNull: false,
   },
+  course_name: {  // Added course_name field
+    type: DataTypes.STRING,
+    allowNull: false,
+  },
   name: {
     type: DataTypes.STRING,
     allowNull: false,
@@ -36,11 +40,16 @@ const Classroom = sequelize.define('Classroom', {
     type: DataTypes.INTEGER,
     allowNull: false,
   },
+  is_active: {  // Added is_active field
+    type: DataTypes.BOOLEAN,
+    allowNull: false,
+    defaultValue: true,
+  }
 }, {
   indexes: [
     {
       unique: true,
-      fields: ['course_rep_id', 'level', 'department'], 
+      fields: ['course_rep_id', 'level', 'department', 'course_name'], 
     },
   ],
 });
