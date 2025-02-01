@@ -19,7 +19,7 @@ const Classroom = sequelize.define('Classroom', {
     type: DataTypes.STRING,
     allowNull: false,
   },
-  course_name: {  // Added course_name field
+  course_name: {  
     type: DataTypes.STRING,
     allowNull: false,
   },
@@ -40,7 +40,7 @@ const Classroom = sequelize.define('Classroom', {
     type: DataTypes.INTEGER,
     allowNull: false,
   },
-  is_active: {  // Added is_active field
+  is_active: { 
     type: DataTypes.BOOLEAN,
     allowNull: false,
     defaultValue: true,

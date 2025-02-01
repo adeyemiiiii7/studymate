@@ -9,9 +9,186 @@ const Slide = require('../models/slides');
 const PastQuestion = require('../models/pastQuestions');
 const Announcement = require('../models/announcements');
 const User = require('../models/user');
+const SlideQuestionAttempt = require('../models/slideQuestionAttempt');
+const Question = require('../models/question');
+const { Op } = require('sequelize');
+studentRouter.get('/api/student/classrooms/:classroomId/sections/:sectionId/slides/:slideId/test',
+  auth, 
+  authorizeRole(['student', 'course_rep']), 
+  async (req, res) => {
+    try {
+      const { classroomId, sectionId, slideId } = req.params;
+      
+      // Get all questions for the slide - including pending_review for testing
+      const allQuestions = await Question.findAll({
+        where: {
+          slide_id: slideId,
+          course_section_id: sectionId,
+          classroom_id: classroomId,
+          status: {
+            [Op.in]: ['approved', 'pending_review'] // Accept both statuses
+          }
+        }
+      });
 
+      console.log('Questions found:', {
+        total: allQuestions.length,
+        byStatus: allQuestions.reduce((acc, q) => {
+          acc[q.status] = (acc[q.status] || 0) + 1;
+          return acc;
+        }, {})
+      });
 
+      if (allQuestions.length === 0) {
+        return res.status(200).json({
+          message: 'No questions available for this slide',
+          debug: {
+            queryParams: {
+              slide_id: slideId,
+              course_section_id: sectionId,
+              classroom_id: classroomId
+            }
+          }
+        });
+      }
+     // Backend: Shuffling logic (already correct)
+const shuffledQuestions = allQuestions.map(q => {
+  const shuffledOptions = q.options
+    .map((value, originalIndex) => ({ 
+      value, 
+      originalIndex,
+      sort: Math.random() 
+    }))
+    .sort((a, b) => a.sort - b.sort);
 
+  const optionMapping = shuffledOptions.map(opt => opt.originalIndex);
+
+  return {
+    question_id: q.question_id,
+    question_text: q.question_text,
+    options: shuffledOptions.map(opt => opt.value),
+    correct_answer: q.correct_answer,
+    option_mapping: optionMapping // Send this to the frontend
+  };
+})
+      .sort(() => 0.5 - Math.random())
+      .slice(0, 25);
+
+      res.status(200).json({
+        message: 'Test questions retrieved successfully',
+        questions: shuffledQuestions,
+        debug: {
+          totalQuestions: allQuestions.length,
+          returnedQuestions: shuffledQuestions.length
+        }
+      });
+    } catch (error) {
+      console.error('Error fetching test questions:', error);
+      res.status(500).json({ 
+        error: 'Internal server error',
+        debug: {
+          message: error.message
+        }
+      });
+    }
+});
+studentRouter.post('/api/student/classrooms/:classroomId/sections/:sectionId/slides/:slideId/submit-test',
+  auth, 
+  authorizeRole(['student', 'course_rep']), 
+  async (req, res) => {
+    try {
+      const { classroomId, sectionId, slideId } = req.params;
+      const { userAnswers } = req.body;
+
+      // Validate userAnswers
+      if (!Array.isArray(userAnswers) || userAnswers.length === 0) {
+        return res.status(400).json({ error: 'Invalid user answers format' });
+      }
+
+      // Verify classroom membership for students
+      if (req.user.role === 'student') {
+        const classroomStudent = await ClassroomStudent.findOne({
+          where: { 
+            student_id: req.user.user_id, 
+            classroom_id: classroomId 
+          }
+        });
+
+        if (!classroomStudent) {
+          return res.status(403).json({ error: 'Not enrolled in this classroom' });
+        }
+      }
+
+      // Fetch the full questions to verify answers
+      const questions = await Question.findAll({
+        where: {
+          slide_id: slideId,
+          course_section_id: sectionId,
+          classroom_id: classroomId,
+          question_id: userAnswers.map(a => a.question_id)
+        }
+      });
+
+      if (questions.length === 0) {
+        return res.status(404).json({ error: 'No questions found' });
+      }
+
+    // Backend: Scoring logic (no changes needed)
+const scoredAnswers = userAnswers.map(userAnswer => {
+  const question = questions.find(q => q.question_id === userAnswer.question_id);
+
+  if (!question) {
+    console.error(`Question not found for ID: ${userAnswer.question_id}`);
+    return null;
+  }
+
+  // The selected_option is already the original index
+  const originalOptionIndex = userAnswer.selected_option;
+
+  // Validate that both the answer and correct_answer exist
+  const isCorrect = question.correct_answer !== undefined && 
+                   originalOptionIndex !== undefined && 
+                   question.correct_answer === originalOptionIndex;
+
+  return {
+    question_id: userAnswer.question_id,
+    question_text: question.question_text,
+    user_selected_option: originalOptionIndex, // Original index
+    correct_answer: question.correct_answer,
+    correct_option: question.options[question.correct_answer],
+    is_correct: isCorrect,
+    options: question.options
+  };
+}).filter(answer => answer !== null);
+
+      if (scoredAnswers.length === 0) {
+        return res.status(400).json({ error: 'No valid answers could be processed' });
+      }
+
+      const score = (scoredAnswers.filter(a => a.is_correct).length / scoredAnswers.length) * 100;
+
+      // Record the attempt
+      await SlideQuestionAttempt.create({
+        user_id: req.user.user_id,
+        slide_id: slideId,
+        classroom_id: classroomId,
+        course_section_id: sectionId,
+        questions_attempted: scoredAnswers,
+        score
+      });
+
+      res.status(200).json({
+        message: 'Test submitted successfully',
+        score,
+        attempts: scoredAnswers
+      });
+    } catch (error) {
+      console.error('Error submitting test:', error);
+      res.status(500).json({ 
+        error: 'Internal server error',
+      });
+    }
+});
 studentRouter.get('/api/student/profile', auth, authorizeRole(['student']), async (req, res) => {
   try {
     const user = await User.findOne({

@@ -12,8 +12,388 @@ const PastQuestion = require('../models/pastQuestions');
 const Announcement = require('../models/announcements');
 const sequelize = require('../config/database');
 const User = require('../models/user');
-const {fetchLeaderboard} = require('../utils/fetchLeaderboard');
+const { fetchLeaderboard } = require('../utils/fetchLeaderboard');
 const ClassroomStudent = require('../models/classroomStudent');
+const { Groq } = require('groq-sdk'); 
+const Question = require('../models/question');
+require('dotenv').config();
+
+const groq = new Groq({
+  apiKey: process.env.GROQ_API_KEY
+});
+async function generateQuestionsWithGroq(slideContent, slideNumber) {
+  const prompt = `IMPORTANT: Provide ONLY a valid JSON array. Do not include any explanatory text before or after.
+
+Generate 25 multiple choice questions based on the following structured slide content.
+Ensure questions cover different aspects and difficulty levels.
+
+Main Concepts: ${slideContent.split('Main Concepts:')[1]?.split('Key Definitions:')[0] || ''}
+Key Definitions: ${slideContent.split('Key Definitions:')[1]?.split('Examples:')[0] || ''}
+Examples: ${slideContent.split('Examples:')[1]?.split('Additional Notes:')[0] || ''}
+Additional Notes: ${slideContent.split('Additional Notes:')[1] || ''}
+
+Generate questions in this EXACT JSON format:
+[
+  {
+    "question_text": "Precise question about the content",
+    "options": ["option A", "option B", "option C", "option D"],
+    "correct_answer": 0,
+    "question_type": "definition",
+    "difficulty_level": "medium"
+  }
+]
+
+Slide ${slideNumber} content: ${slideContent}
+
+JSON ARRAY:`;
+
+  let response;
+  try {
+    response = await groq.chat.completions.create({
+      messages: [
+        {
+          role: "user",
+          content: prompt
+        }
+      ],
+      model: "llama-3.3-70b-versatile",
+      temperature: 0.7,
+      max_tokens: 3000
+    });
+
+    const responseText = response.choices[0]?.message?.content?.trim();
+    
+    if (!responseText) {
+      throw new Error('Empty response from Groq API');
+    }
+
+    const jsonMatch = responseText.match(/\[.*\]/s);
+    
+    if (!jsonMatch) {
+      throw new Error('No valid JSON array found in response');
+    }
+
+    const questions = JSON.parse(jsonMatch[0]);
+    return questions.map(q => ({
+      ...q,
+      slide_number: slideNumber
+    }));
+
+  } catch (error) {
+    console.error('Detailed error generating questions:', {
+      message: error.message,
+      responseText: response?.choices?.[0]?.message?.content || 'No response available',
+      error: error.stack
+    });
+    
+    // Re-throw with more context
+    throw new Error(`Failed to generate questions: ${error.message}`);
+  }
+}
+// /// Initialize Anthropic API
+// const anthropic = new Anthropic({
+//   apiKey: process.env.ANTHROPIC_API_KEY
+// });
+
+// // Function to generate questions using Claude
+// async function generateQuestionsWithClaude(slideContent, slideNumber) {
+//   const prompt = `
+// IMPORTANT: Provide ONLY a valid JSON array. Do not include any explanatory text before or after.
+
+// Generate 25 multiple choice questions based on the following structured slide content. 
+// Ensure questions cover different aspects and difficulty levels.
+
+// Main Concepts:
+// ${slideContent.split('Main Concepts:')[1]?.split('Key Definitions:')[0] || ''}
+
+// Key Definitions:
+// ${slideContent.split('Key Definitions:')[1]?.split('Examples:')[0] || ''}
+
+// Examples:
+// ${slideContent.split('Examples:')[1]?.split('Additional Notes:')[0] || ''}
+
+// Additional Notes:
+// ${slideContent.split('Additional Notes:')[1] || ''}
+
+// Generate questions in this EXACT JSON format:
+// [
+//   {
+//     "question_text": "Precise question about the content",
+//     "options": ["option A", "option B", "option C", "option D"],
+//     "correct_answer": 0,
+//     "question_type": "definition",
+//     "difficulty_level": "medium"
+//   }
+// ]
+// Slide ${slideNumber} content:
+// ${slideContent}
+
+// JSON ARRAY:`;
+
+//   try {
+//     const response = await anthropic.messages.create({
+//       model: "claude-3-opus-20240229",
+//       max_tokens: 3000,
+//       messages: [
+//         {
+//           role: "user",
+//           content: prompt
+//         }
+//       ],
+//       temperature: 0.7
+//     });
+
+//     // Extract response text and trim any potential extra text
+//     const responseText = response.content[0].text.trim();
+    
+//     // Find the first valid JSON array in the response
+//     const jsonMatch = responseText.match(/\[.*\]/s);
+//     if (!jsonMatch) {
+//       throw new Error('No valid JSON array found in response');
+//     }
+
+//     const questions = JSON.parse(jsonMatch[0]);
+    
+//     return questions.map(q => ({
+//       ...q,
+//       slide_number: slideNumber
+//     }));
+//   } catch (error) {
+//     console.error('Detailed error generating questions:', {
+//       message: error.message,
+//       responseText: response?.content?.[0]?.text
+//     });
+//     throw error;
+//   }
+// }
+// Get questions endpoint with slide-specific filtering and improved error handling
+courseRepRouter.get('/api/course-rep/classrooms/:classroomId/course-sections/:courseSectionId/slides/:slideId/questions',
+  auth,
+  authorizeRole(['course_rep']),
+  async (req, res) => {
+    try {
+      const { classroomId, courseSectionId, slideId } = req.params;
+
+      // Validate slide existence first
+      const slide = await Slide.findOne({
+        where: {
+          slide_id: slideId,
+          course_section_id: courseSectionId,
+          classroom_id: classroomId
+        }
+      });
+
+      if (!slide) {
+        return res.status(404).json({ 
+          error: 'Slide not found or unauthorized access',
+          questions: [] 
+        });
+      }
+
+      // Fetch questions for the specific slide
+      const questions = await Question.findAll({
+        where: {
+          slide_id: slideId,
+          course_section_id: courseSectionId,
+          classroom_id: classroomId
+        },
+        order: [['slide_number', 'ASC']],
+        attributes: [
+          'question_id', 
+          'question_text', 
+          'options', 
+          'correct_answer', 
+          'question_type', 
+          'difficulty_level',
+          'slide_number'
+        ]
+      });
+
+      res.status(200).json({
+        message: 'Questions retrieved successfully',
+        questions: questions.length > 0 ? questions : [],
+        slide: {
+          slide_id: slide.slide_id,
+          slide_name: slide.slide_name,
+          slide_number: slide.slide_number
+        }
+      });
+    } catch (error) {
+      console.error('Error fetching questions:', error);
+      res.status(500).json({ 
+        error: 'Failed to fetch questions',
+        questions: []
+      });
+    }
+});
+
+// Updated generate questions endpoint with more robust error handling
+courseRepRouter.post('/api/course-rep/classrooms/:classroomId/course-sections/:courseSectionId/slides/:slideId/generate-questions',
+  auth,
+  authorizeRole(['course_rep']),
+  async (req, res) => {
+    const transaction = await sequelize.transaction();
+    try {
+      const { classroomId, courseSectionId, slideId } = req.params;
+      const { slideContent, slideNumber } = req.body;
+      
+      // Validate inputs
+      if (!slideContent) {
+        return res.status(400).json({ 
+          error: 'Slide content is required for generating questions',
+          questions: []
+        });
+      }
+
+      // Validate slide existence and ownership
+      const slide = await Slide.findOne({
+        where: {
+          slide_id: slideId,
+          course_section_id: courseSectionId,
+          classroom_id: classroomId
+        },
+        transaction
+      });
+
+      if (!slide) {
+        await transaction.rollback();
+        return res.status(404).json({ 
+          error: 'Slide not found or unauthorized access',
+          questions: []
+        });
+      }
+
+      // First, delete any existing questions for this slide
+      await Question.destroy({
+        where: {
+          slide_id: slideId,
+          course_section_id: courseSectionId,
+          classroom_id: classroomId
+        },
+        transaction
+      });
+
+      // Generate new questions
+      const generatedQuestions = await generateQuestionsWithGroq(slideContent, slideNumber);
+      
+      // Save generated questions
+      const savedQuestions = await Promise.all(
+        generatedQuestions.map(q => Question.create({
+          ...q,
+          slide_id: slide.slide_id,
+          course_section_id: courseSectionId,
+          classroom_id: classroomId
+        }, { transaction }))
+      );
+
+      // Commit transaction
+      await transaction.commit();
+
+      res.status(200).json({
+        message: 'Questions generated successfully',
+        questions: savedQuestions,
+        slide: {
+          slide_id: slide.slide_id,
+          slide_name: slide.slide_name,
+          slide_number: slide.slide_number
+        }
+      });
+
+    } catch (error) {
+      // Rollback transaction in case of error
+      if (transaction) await transaction.rollback();
+      
+      console.error('Error generating questions:', error);
+      res.status(500).json({ 
+        error: 'Failed to generate questions',
+        details: error.message,
+        questions: []
+      });
+    }
+});
+
+// Edit question endpoint with additional validation
+courseRepRouter.put('/api/course-rep/classrooms/:classroomId/questions/:questionId',
+  auth,
+  authorizeRole(['course_rep']),
+  async (req, res) => {
+    try {
+      const { classroomId } = req.params;
+      const {
+        question_text,
+        options,
+        correct_answer,
+        question_type,
+        difficulty_level,
+        status,
+        feedback
+      } = req.body;
+
+      const question = await Question.findOne({
+        where: {
+          question_id: req.params.questionId,
+          classroom_id: classroomId
+        },
+        include: [{
+          model: Slide,
+          where: { classroom_id: classroomId }
+        }]
+      });
+
+      if (!question) {
+        return res.status(404).json({ error: 'Question not found or unauthorized access' });
+      }
+
+      await question.update({
+        question_text: question_text || question.question_text,
+        options: options || question.options,
+        correct_answer: (correct_answer !== undefined) ? correct_answer : question.correct_answer,
+        question_type: question_type || question.question_type,
+        difficulty_level: difficulty_level || question.difficulty_level,
+        status: status || question.status,
+        feedback: feedback || question.feedback
+      });
+
+      res.status(200).json({
+        message: 'Question updated successfully',
+        question
+      });
+
+    } catch (error) {
+      console.error('Error updating question:', error);
+      res.status(500).json({ error: 'Failed to update question' });
+    }
+});
+
+// Delete question endpoint with classroom validation
+courseRepRouter.delete('/api/course-rep/classrooms/:classroomId/questions/:questionId',
+  auth,
+  authorizeRole(['course_rep']),
+  async (req, res) => {
+    try {
+      const { classroomId } = req.params;
+
+      const question = await Question.findOne({
+        where: {
+          question_id: req.params.questionId,
+          classroom_id: classroomId
+        }
+      });
+
+      if (!question) {
+        return res.status(404).json({ error: 'Question not found or unauthorized access' });
+      }
+
+      await question.destroy();
+      res.status(200).json({
+        message: 'Question deleted successfully'
+      });
+
+    } catch (error) {
+      res.status(500).json({ error: 'Failed to delete question' });
+    }
+});
+
 courseRepRouter.get('/api/course-rep/profile', auth, authorizeRole(['course_rep']), async (req, res) => {
   try {
     const user = await User.findOne({
@@ -647,61 +1027,96 @@ courseRepRouter.delete('/api/course-rep/classrooms/:classroomId',
     }
 });
 
-// Delete course section
 courseRepRouter.delete('/api/course-rep/classrooms/:classroomId/course-sections/:sectionId', 
   auth, 
   authorizeRole(['course_rep']), 
   async (req, res) => {
+    const t = await sequelize.transaction();
     try {
       const section = await CourseSection.findOne({
         where: {
           course_section_id: req.params.sectionId,
           classroom_id: req.params.classroomId
-        },
-        include: [{
-          model: Classroom,
-          where: { course_rep_id: req.user.user_id }
-        }]
+        }
       });
 
       if (!section) {
+        await t.rollback();
         return res.status(404).json({ error: 'Course section not found or unauthorized' });
       }
 
-      await section.destroy();
+      // First, delete Questions referencing Slides in this section
+      await Question.destroy({
+        where: { 
+          course_section_id: section.course_section_id 
+        },
+        transaction: t
+      });
+
+      // Then delete associated records
+      await Promise.all([
+        Slide.destroy({
+          where: { course_section_id: section.course_section_id },
+          transaction: t
+        }),
+        PastQuestion.destroy({
+          where: { course_section_id: section.course_section_id },
+          transaction: t
+        })
+      ]);
+
+      // Finally delete the section
+      await section.destroy({ transaction: t });
+      await t.commit();
 
       res.status(200).json({ message: 'Course section deleted successfully' });
     } catch (error) {
+      await t.rollback();
       console.error('Error deleting course section:', error);
       res.status(500).json({ error: 'Internal server error' });
     }
 });
 
 // Delete slide
-courseRepRouter.delete('/api/course-rep/classrooms/:classroomId/slides/:slideId', 
-  auth, 
-  authorizeRole(['course_rep']), 
+courseRepRouter.delete('/api/course-rep/classrooms/:classroomId/slides/:slideId',
+  auth,
+  authorizeRole(['course_rep']),
   async (req, res) => {
-    try {
-      const slide = await Slide.findOne({
-        where: {
-          slide_id: req.params.slideId,
-          classroom_id: req.params.classroomId
-        }
-      });
+   const t = await sequelize.transaction();
+   try {
+     const slide = await Slide.findOne({
+       where: {
+         slide_id: req.params.slideId,
+         classroom_id: req.params.classroomId
+       }
+     });
 
-      if (!slide) {
-        return res.status(404).json({ error: 'Slide not found' });
-      }
+     if (!slide) {
+       await t.rollback();
+       return res.status(404).json({ error: 'Slide not found' });
+     }
 
-      await slide.destroy();
+     // First, delete associated questions
+     await Question.destroy({
+       where: { slide_id: slide.slide_id },
+       transaction: t
+     });
 
-      res.status(200).json({ message: 'Slide deleted successfully' });
-    } catch (error) {
-      console.error('Error deleting slide:', error);
-      res.status(500).json({ error: 'Internal server error' });
-    }
-});
+     // Then delete the slide
+     await slide.destroy({ transaction: t });
+     
+     await t.commit();
+     res.status(200).json({ message: 'Slide deleted successfully' });
+   } catch (error) {
+     await t.rollback();
+     console.error('Error deleting slide:', error);
+     res.status(500).json({ 
+       error: 'Internal server error', 
+       details: error.message 
+     });
+   }
+  }
+);
 
 // Delete past question
 courseRepRouter.delete('/api/course-rep/classrooms/:classroomId/past-questions/:questionId', 
@@ -788,7 +1203,7 @@ courseRepRouter.post('/api/course-rep/classrooms/create', auth, authorizeRole(['
     const transporter = nodemailer.createTransport({
       service: 'gmail',
       auth: {
-        user: 'aladesuyides@gmail.com', // Fixed typo in email address
+        user: 'aladesuyides@gmail.com', 
         pass: 'kugi fihw cugc trye'
       },
       tls: {

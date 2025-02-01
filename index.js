@@ -15,7 +15,7 @@ setupAssociations();
 
 // Middleware
 app.use(cors());
-app.use(morgan('combined'));
+app.use(morgan('dev'));
 app.use(authRouter);
 app.use(courseRepRouter);
 app.use(studentRouter);

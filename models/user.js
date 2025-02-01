@@ -79,13 +79,13 @@ const User = sequelize.define('User', {
   focus_mode_data: {
     type: DataTypes.JSONB,
     defaultValue: {
-      lastSessionStart: null,      // Timestamp when current/last session started
-      duration: null,              // Duration of current/last session in ms
-      isActive: false,             // Whether a session is currently running
-      stressLevel: null,           // User's stress level from questionnaire
-      workType: null,              // Type of work being done
-      cooldownEnd: null,           // Timestamp when cooldown period ends
-      sessionHistory: []           // Array to store past session data
+      lastSessionStart: null,      
+      duration: null,             
+      isActive: false,           
+      stressLevel: null,         
+      workType: null,              
+      cooldownEnd: null,         
+      sessionHistory: []          
     },
     allowNull: false
   },

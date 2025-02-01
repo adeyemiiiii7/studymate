@@ -3,41 +3,99 @@ const Classroom = require('../models/classroom');
 const ClassroomStudent = require('../models/classroomStudent');
 const CourseSection = require('../models/courseSection');
 const Slide = require('../models/slides');
+const Question = require('../models/question');
+const Announcement = require('../models/announcements');
+const PastQuestion = require('../models/pastQuestions');
 
 function setupAssociations() {
   // Many-to-Many: User <-> Classroom (via ClassroomStudent)
-  User.belongsToMany(Classroom, { 
-    through: ClassroomStudent, 
-    foreignKey: 'student_id', 
-    otherKey: 'classroom_id',
-    as: 'classrooms' 
+  User.belongsToMany(Classroom, {
+     through: ClassroomStudent,
+     foreignKey: 'student_id',
+     otherKey: 'classroom_id',
+     as: 'classrooms'  
   });
-  Classroom.belongsToMany(User, { 
-    through: ClassroomStudent, 
-    foreignKey: 'classroom_id', 
-    otherKey: 'student_id',
-    as: 'students'
+  
+  Classroom.belongsToMany(User, {
+     through: ClassroomStudent,
+     foreignKey: 'classroom_id',
+     otherKey: 'student_id',
+     as: 'enrolledStudents'
   });
-
-  // Defining ClassroomStudent associations for clarity
+  
+  // ClassroomStudent associations
   ClassroomStudent.belongsTo(User, { foreignKey: 'student_id', as: 'student' });
   ClassroomStudent.belongsTo(Classroom, { foreignKey: 'classroom_id', as: 'classroom' });
-
-  // One-to-Many: Course Rep managing multiple Classrooms
-  User.hasMany(Classroom, { foreignKey: 'course_rep_id', as: 'managed_classrooms' });
-  Classroom.belongsTo(User, { foreignKey: 'course_rep_id', as: 'course_rep' });
-
-  // One-to-Many: Classroom containing multiple Course Sections
-  Classroom.hasMany(CourseSection, { as: 'courseSections', foreignKey: 'classroom_id' });
-  CourseSection.belongsTo(Classroom, { foreignKey: 'classroom_id', as: 'classroom' });
-
-  // One-to-Many: Classroom and Slides
-  Classroom.hasMany(Slide, { as: 'slides', foreignKey: 'classroom_id' });
-  Slide.belongsTo(Classroom, { foreignKey: 'classroom_id', as: 'classroom' });
-
-  // One-to-Many: CourseSection and Slides
-  CourseSection.hasMany(Slide, { foreignKey: 'course_section_id', as: 'slides' });
-  Slide.belongsTo(CourseSection, { foreignKey: 'course_section_id', as: 'courseSection' });
+  
+  // Course Rep managing multiple Classrooms
+  User.hasMany(Classroom, { foreignKey: 'course_rep_id', as: 'managedClassrooms' });
+  Classroom.belongsTo(User, { foreignKey: 'course_rep_id', as: 'courseRep' });
+  
+  // Classroom and Course Sections with Cascade
+  Classroom.hasMany(CourseSection, { as: 'courseSections', foreignKey: 'classroom_id', onDelete: 'CASCADE' });
+  CourseSection.belongsTo(Classroom, { as: 'classroomDetail', foreignKey: 'classroom_id' });
+  
+  // Classroom and Slides with Cascade
+  Classroom.hasMany(Slide, {
+     as: 'classroomSlides',
+     foreignKey: 'classroom_id',
+     onDelete: 'CASCADE'
+  });
+  Slide.belongsTo(Classroom, {
+     as: 'classroomDetail',
+     foreignKey: 'classroom_id'
+  });
+  
+  // Classroom and Announcements with Cascade
+  Classroom.hasMany(Announcement, {
+     as: 'classroomAnnouncements',
+     foreignKey: 'classroom_id',
+     onDelete: 'CASCADE'
+  });
+  Announcement.belongsTo(Classroom, {
+     as: 'classroomDetail',
+     foreignKey: 'classroom_id'
+  });
+  
+  // Classroom and Classroom Students with Cascade
+  Classroom.hasMany(ClassroomStudent, {
+     as: 'classroomStudents',
+     foreignKey: 'classroom_id',
+     onDelete: 'CASCADE'
+  });
+  
+  // Course Section and Slides with Cascade
+  CourseSection.hasMany(Slide, {
+     as: 'courseSectionSlides',
+     foreignKey: 'course_section_id',
+     onDelete: 'CASCADE'
+  });
+  Slide.belongsTo(CourseSection, {
+     as: 'courseSectionDetail',
+     foreignKey: 'course_section_id'
+  });
+  
+  // Course Section and Questions with Cascade
+  CourseSection.hasMany(Question, {
+     as: 'courseSectionQuestions',
+     foreignKey: 'course_section_id',
+     onDelete: 'CASCADE'
+  });
+  Question.belongsTo(CourseSection, {
+     as: 'courseSectionDetail',
+     foreignKey: 'course_section_id'
+  });
+  
+  // Course Section and Past Questions with Cascade
+  CourseSection.hasMany(PastQuestion, {
+     as: 'courseSectionPastQuestions',
+     foreignKey: 'course_section_id',
+     onDelete: 'CASCADE'
+  });
+  PastQuestion.belongsTo(CourseSection, {
+     as: 'courseSectionDetail',
+     foreignKey: 'course_section_id'
+  });
 }
 
 module.exports = setupAssociations;
