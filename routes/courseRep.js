@@ -411,7 +411,8 @@ courseRepRouter.get('/api/course-rep/profile', auth, authorizeRole(['course_rep'
         'current_streak',
         'highest_streak',
         'total_active_days',
-        'xp'
+        'xp',
+     
       ]
     });
 
@@ -431,10 +432,10 @@ courseRepRouter.get('/api/course-rep/profile', auth, authorizeRole(['course_rep'
 
 courseRepRouter.put('/api/course-rep/profile/update', auth, authorizeRole(['course_rep']), async (req, res) => {
   try {
-    const { first_name, last_name } = req.body;
+    const { first_name, last_name, department, course_of_study} = req.body;
 
     await User.update(
-      { first_name, last_name },
+      { first_name, last_name, department, course_of_study },
       { where: { user_id: req.user.user_id, role: 'course_rep' } }
     );
 
