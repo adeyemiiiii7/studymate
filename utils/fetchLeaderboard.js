@@ -10,7 +10,7 @@ const fetchLeaderboard = async (classroomId) => {
         model: User,
         as: 'student',
         attributes: [
-          'user_id',  // Changed from 'id' to 'user_id' to match User model
+          'user_id',  
           'first_name',
           'last_name',
           'current_streak',
