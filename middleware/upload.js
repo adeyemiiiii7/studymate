@@ -2,36 +2,47 @@ const multer = require('multer');
 const { CloudinaryStorage } = require('multer-storage-cloudinary');
 const cloudinary = require('../config/cloudinary');
 
-// Create a CloudinaryStorage instance for handling various file types
+// Create a CloudinaryStorage instance with better handling for document types
 const storage = new CloudinaryStorage({
   cloudinary: cloudinary,
   params: (req, file) => {
-    let folder = 'documents';
+    console.log('Processing file:', file.originalname, 'MIME type:', file.mimetype);
+    
     if (file.mimetype.startsWith('image/')) {
-      folder = 'images';
+      return {
+        folder: 'images',
+        resource_type: 'image'
+      };
+    } else {
+      return {
+        folder: 'documents',
+        resource_type: 'raw',
+        public_id: `${Date.now()}-${file.originalname.replace(/\s+/g, '_')}` 
+      };
     }
-    return {
-      folder: folder,
-      allowed_formats: ['pdf', 'doc', 'docx', 'jpg', 'jpeg', 'png', 'gif'],
-    };
-  },
+  }
 });
 
-// File filter to restrict file types
+// File filter with improved mime type detection
 const fileFilter = (req, file, cb) => {
+  console.log('Filtering file:', file.originalname, 'MIME type:', file.mimetype);
+  
   const allowedMimeTypes = [
     'application/pdf',
-    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-    'application/msword',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 
+    'application/msword', 
+    'application/vnd.openxmlformats-officedocument.presentationml.presentation', 
+    'application/vnd.ms-powerpoint', 
     'image/jpeg',
     'image/png',
     'image/gif'
   ];
-
+  
   if (allowedMimeTypes.includes(file.mimetype)) {
     cb(null, true);
   } else {
-    cb(new Error('Unsupported file type. Only PDF, DOCX, JPG, JPEG, PNG, and GIF are allowed.'), false);
+    console.error('Rejected file:', file.originalname, 'MIME type:', file.mimetype);
+    cb(new Error(`Unsupported file type: ${file.mimetype}. Only PDF, DOCX, DOC, PPTX, PPT, JPG, PNG, and GIF are allowed.`), false);
   }
 };
 
@@ -41,7 +52,18 @@ const upload = multer({
   fileFilter: fileFilter,
   limits: {
     fileSize: 20 * 1024 * 1024, // 20MB file size limit
-  },
+  }
 });
 
-module.exports = upload;
+// Add error handling middleware for multer errors
+const handleMulterErrors = (err, req, res, next) => {
+  if (err) {
+    console.error('Upload error:', err);
+    return res.status(400).json({
+      error: `File upload error: ${err.message}`
+    });
+  }
+  next();
+};
+
+module.exports = { upload, handleMulterErrors };

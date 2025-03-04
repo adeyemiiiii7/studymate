@@ -3,11 +3,12 @@ const morgan = require('morgan');
 const cors = require('cors');
 const authRouter = require('./routes/auth');
 const courseRepRouter = require('./routes/courseRep');
-const studentRouter = require('./routes/students');
+const {studentRouter} = require('./routes/students');
 const sequelize = require('./config/database'); 
 const setupAssociations = require('./config/associations'); 
 const questRouter = require('./routes/questRoute.js');
 const wellnessRouter = require('./routes/wellness.js');
+const { initializeScheduleNotifications } = require('./routes/students');
 const app = express();
 app.use(express.json());
 // Setup associations
@@ -32,5 +33,12 @@ sequelize
  const PORT = process.env.PORT || 3000;
   app.listen(PORT, () => {
     console.log(`Server is running on port ${PORT}`);
+
+    try {
+      initializeScheduleNotifications();
+      console.log('Schedule notifications initialized successfully');
+    } catch (error) {
+      console.error('Failed to initialize schedule notifications:', error);
+    }
   });
   

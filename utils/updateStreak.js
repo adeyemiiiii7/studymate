@@ -1,6 +1,5 @@
 const { Op } = require('sequelize');
 const User = require('../models/user');
-
 const updateStreak = async (userId) => {
   const user = await User.findByPk(userId);
   if (!user) {
@@ -26,37 +25,30 @@ const updateStreak = async (userId) => {
   const yesterdayStr = yesterday.toISOString().split('T')[0];
   const lastActiveDateStr = userLastActiveDate?.toISOString().split('T')[0];
 
-  console.log('Today (UTC):', todayStr);
-  console.log('Yesterday (UTC):', yesterdayStr);
-  console.log('Last Active Date (UTC):', lastActiveDateStr);
-
   // Skip if already logged in today
   if (lastActiveDateStr === todayStr) {
-    console.log('User already active today. No streak update needed.');
     return user;
   }
 
   // Update streak logic
   if (!lastActiveDateStr) {
-    console.log('First activity detected.');
+    // First activity
     user.current_streak = 1;
     user.highest_streak = 1;
     user.total_active_days = 1;
   } else if (lastActiveDateStr === yesterdayStr) {
-    console.log('User was active yesterday. Incrementing streak.');
+    // Active consecutive day
     user.current_streak += 1;
     user.highest_streak = Math.max(user.current_streak, user.highest_streak);
     user.total_active_days += 1;
   } else {
-    console.log('Break in streak detected. Resetting to 1.');
+    // Any break in consecutive days immediately resets streak to 1
     user.current_streak = 1;
     user.total_active_days += 1;
   }
 
   user.last_active_date = todayStr;
   await user.save();
-
   return user;
 };
-
 module.exports = { updateStreak };

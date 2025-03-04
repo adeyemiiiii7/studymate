@@ -7,7 +7,7 @@ const CourseSection = require('../models/courseSection');
 const courseRepRouter = express.Router();
 const nodemailer = require('nodemailer');
 const Slide = require('../models/slides');
-const upload = require('../middleware/upload');
+const {upload,  handleMulterErrors,} = require('../middleware/upload');
 const PastQuestion = require('../models/pastQuestions');
 const Announcement = require('../models/announcements');
 const sequelize = require('../config/database');
@@ -90,82 +90,45 @@ JSON ARRAY:`;
     throw new Error(`Failed to generate questions: ${error.message}`);
   }
 }
-// /// Initialize Anthropic API
-// const anthropic = new Anthropic({
-//   apiKey: process.env.ANTHROPIC_API_KEY
-// });
+courseRepRouter.get('/api/course-rep/classrooms/stats', 
+  auth, 
+  authorizeRole(['course_rep']), 
+  async (req, res) => {
+    try {
+      const classrooms = await Classroom.findAll({
+        where: {
+          course_rep_id: req.user.user_id
+        },
+        attributes: [
+          'classroom_id',
+          'name', 
+        ]
+      });
 
-// // Function to generate questions using Claude
-// async function generateQuestionsWithClaude(slideContent, slideNumber) {
-//   const prompt = `
-// IMPORTANT: Provide ONLY a valid JSON array. Do not include any explanatory text before or after.
+      // Get student count for each classroom
+      const classroomsWithStats = await Promise.all(
+        classrooms.map(async (classroom) => {
+          const totalStudents = await ClassroomStudent.count({
+            where: { classroom_id: classroom.classroom_id }
+          });
 
-// Generate 25 multiple choice questions based on the following structured slide content. 
-// Ensure questions cover different aspects and difficulty levels.
+          return {
+            ...classroom.toJSON(),
+            total_students: totalStudents
+          };
+        })
+      );
 
-// Main Concepts:
-// ${slideContent.split('Main Concepts:')[1]?.split('Key Definitions:')[0] || ''}
+      res.status(200).json({
+        message: 'Classrooms retrieved successfully',
+        classrooms: classroomsWithStats
+      });
 
-// Key Definitions:
-// ${slideContent.split('Key Definitions:')[1]?.split('Examples:')[0] || ''}
-
-// Examples:
-// ${slideContent.split('Examples:')[1]?.split('Additional Notes:')[0] || ''}
-
-// Additional Notes:
-// ${slideContent.split('Additional Notes:')[1] || ''}
-
-// Generate questions in this EXACT JSON format:
-// [
-//   {
-//     "question_text": "Precise question about the content",
-//     "options": ["option A", "option B", "option C", "option D"],
-//     "correct_answer": 0,
-//     "question_type": "definition",
-//     "difficulty_level": "medium"
-//   }
-// ]
-// Slide ${slideNumber} content:
-// ${slideContent}
-
-// JSON ARRAY:`;
-
-//   try {
-//     const response = await anthropic.messages.create({
-//       model: "claude-3-opus-20240229",
-//       max_tokens: 3000,
-//       messages: [
-//         {
-//           role: "user",
-//           content: prompt
-//         }
-//       ],
-//       temperature: 0.7
-//     });
-
-//     // Extract response text and trim any potential extra text
-//     const responseText = response.content[0].text.trim();
-    
-//     // Find the first valid JSON array in the response
-//     const jsonMatch = responseText.match(/\[.*\]/s);
-//     if (!jsonMatch) {
-//       throw new Error('No valid JSON array found in response');
-//     }
-
-//     const questions = JSON.parse(jsonMatch[0]);
-    
-//     return questions.map(q => ({
-//       ...q,
-//       slide_number: slideNumber
-//     }));
-//   } catch (error) {
-//     console.error('Detailed error generating questions:', {
-//       message: error.message,
-//       responseText: response?.content?.[0]?.text
-//     });
-//     throw error;
-//   }
-// }
+    } catch (error) {
+      console.error('Error fetching classrooms:', error);
+      res.status(500).json({ error: 'Internal server error' });
+    }
+});
 // Get questions endpoint with slide-specific filtering and improved error handling
 courseRepRouter.get('/api/course-rep/classrooms/:classroomId/course-sections/:courseSectionId/slides/:slideId/questions',
   auth,
@@ -567,7 +530,10 @@ courseRepRouter.get('/api/course-rep/classrooms/:classroomId/sections',
 
 // Route to upload a slide to a course section
 courseRepRouter.post('/api/course-rep/classrooms/:classroomId/course-sections/:courseSectionId/slides/upload', 
-  auth, authorizeRole(['course_rep']), upload.single('file'), async (req, res) => {
+  auth, authorizeRole(['course_rep']), 
+  upload.single('file'),
+  handleMulterErrors,
+   async (req, res) => {
   try {
     const { classroomId, courseSectionId } = req.params;
     const { slide_name, slide_number } = req.body;
@@ -714,7 +680,8 @@ courseRepRouter.post('/api/course-rep/classrooms/:classroomId/course-sections/:c
 courseRepRouter.post('/api/course-rep/classrooms/:classroomId/announcements', 
   auth, 
   authorizeRole(['course_rep']),
-  upload.array('files', 5),
+  upload.single('file'),
+  handleMulterErrors,
   async (req, res) => {
     const { classroomId } = req.params;
     const { content, tag, links } = req.body;
@@ -1028,55 +995,74 @@ courseRepRouter.delete('/api/course-rep/classrooms/:classroomId',
     }
 });
 
-courseRepRouter.delete('/api/course-rep/classrooms/:classroomId/course-sections/:sectionId', 
-  auth, 
-  authorizeRole(['course_rep']), 
+courseRepRouter.delete('/api/course-rep/classrooms/:classroomId/course-sections/:sectionId',
+  auth,
+  authorizeRole(['course_rep']),
   async (req, res) => {
-    const t = await sequelize.transaction();
-    try {
-      const section = await CourseSection.findOne({
-        where: {
-          course_section_id: req.params.sectionId,
-          classroom_id: req.params.classroomId
-        }
-      });
+   const t = await sequelize.transaction();
+   try {
+     const section = await CourseSection.findOne({
+       where: {
+         course_section_id: req.params.sectionId,
+         classroom_id: req.params.classroomId
+       }
+     });
+     
+     if (!section) {
+       await t.rollback();
+       return res.status(404).json({ error: 'Course section not found or unauthorized' });
+     }
+     
+     // Get all slides in this section
+     const slides = await Slide.findAll({
+       where: { course_section_id: section.course_section_id },
+       transaction: t
+     });
+     
+     const slideIds = slides.map(slide => slide.slide_id);
+     
 
-      if (!section) {
-        await t.rollback();
-        return res.status(404).json({ error: 'Course section not found or unauthorized' });
-      }
-
-      // First, delete Questions referencing Slides in this section
-      await Question.destroy({
-        where: { 
-          course_section_id: section.course_section_id 
-        },
-        transaction: t
-      });
-
-      // Then delete associated records
-      await Promise.all([
-        Slide.destroy({
-          where: { course_section_id: section.course_section_id },
-          transaction: t
-        }),
-        PastQuestion.destroy({
-          where: { course_section_id: section.course_section_id },
-          transaction: t
-        })
-      ]);
-
-      // Finally delete the section
-      await section.destroy({ transaction: t });
-      await t.commit();
-
-      res.status(200).json({ message: 'Course section deleted successfully' });
-    } catch (error) {
-      await t.rollback();
-      console.error('Error deleting course section:', error);
-      res.status(500).json({ error: 'Internal server error' });
-    }
-});
+     if (slideIds.length > 0) {
+       await sequelize.query(
+         `DELETE FROM "SlideQuestionAttempts" WHERE "slide_id" IN (:slideIds)`,
+         {
+           replacements: { slideIds },
+           type: sequelize.QueryTypes.DELETE,
+           transaction: t
+         }
+       );
+     }
+     
+     // Delete Questions referencing Slides in this section
+     await Question.destroy({
+       where: {
+         course_section_id: section.course_section_id
+       },
+       transaction: t
+     });
+     
+     // Then delete associated records
+     await Promise.all([
+       Slide.destroy({
+         where: { course_section_id: section.course_section_id },
+         transaction: t
+       }),
+       PastQuestion.destroy({
+         where: { course_section_id: section.course_section_id },
+         transaction: t
+       })
+     ]);
+     
+     // Finally delete the section
+     await section.destroy({ transaction: t });
+     await t.commit();
+     res.status(200).json({ message: 'Course section deleted successfully' });
+   } catch (error) {
+     await t.rollback();
+     console.error('Error deleting course section:', error);
+     res.status(500).json({ error: 'Internal server error' });
+   }
+ });
 
 // Delete slide
 courseRepRouter.delete('/api/course-rep/classrooms/:classroomId/slides/:slideId',
