@@ -30,8 +30,6 @@ const storage = new CloudinaryStorage({
     }
   }
 });
-
-// File filter with improved mime type detection
 const fileFilter = (req, file, cb) => {
   console.log('Filtering file:', file.originalname, 'MIME type:', file.mimetype);
   
@@ -53,7 +51,6 @@ const fileFilter = (req, file, cb) => {
     cb(new Error(`Unsupported file type: ${file.mimetype}. Only PDF, DOCX, DOC, PPTX, PPT, JPG, PNG, and GIF are allowed.`), false);
   }
 };
-
 // Set up multer with Cloudinary storage and file filter
 const upload = multer({
   storage: storage,
@@ -62,7 +59,6 @@ const upload = multer({
     fileSize: 20 * 1024 * 1024, // 20MB file size limit
   }
 });
-
 // Add error handling middleware for multer errors
 const handleMulterErrors = (err, req, res, next) => {
   if (err) {
@@ -73,5 +69,4 @@ const handleMulterErrors = (err, req, res, next) => {
   }
   next();
 };
-
 module.exports = { upload, handleMulterErrors };
