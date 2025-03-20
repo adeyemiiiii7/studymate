@@ -24,15 +24,13 @@ studentRouter.get('/api/student/classrooms/:classroomId/sections/:sectionId/slid
   async (req, res) => {
     try {
       const { classroomId, sectionId, slideId } = req.params;
-      
-      // Get all questions for the slide - including pending_review for testing
       const allQuestions = await Question.findAll({
         where: {
           slide_id: slideId,
           course_section_id: sectionId,
           classroom_id: classroomId,
           status: {
-            [Op.in]: ['approved', 'pending_review'] // Accept both statuses
+            [Op.in]: ['approved', 'pending_review'] 
           }
         }
       });
@@ -333,96 +331,6 @@ studentRouter.get('/api/student/classrooms/:classroomId/slides/:slideId/progress
     }
 });
 
-// New route for section-wide slide progress
-// studentRouter.get('/api/student/classrooms/:classroomId/sections/:sectionId/slides-progress',
-//   auth,
-//   authorizeRole(['student', 'course_rep']),
-//   async (req, res) => {
-//     try {
-//       const { classroomId, sectionId } = req.params;
-//       const userId = req.user.user_id;
-
-//       // Verify classroom enrollment
-//       if (req.user.role === 'student') {
-//         const enrollment = await ClassroomStudent.findOne({
-//           where: { 
-//             student_id: userId, 
-//             classroom_id: classroomId 
-//           }
-//         });
-
-//         if (!enrollment) {
-//           return res.status(403).json({ error: 'Not enrolled in this classroom' });
-//         }
-//       }
-
-//       // Get all slides for the section
-//       const slides = await Slide.findAll({
-//         where: {
-//           classroom_id: classroomId,
-//           course_section_id: sectionId
-//         },
-//         order: [['slide_number', 'ASC']]
-//       });
-
-//       if (!slides || slides.length === 0) {
-//         return res.status(404).json({ error: 'No slides found for this section' });
-//       }
-
-//       const slideIds = slides.map(slide => slide.slide_id);
-      
-//       // Get multi-slide progress data
-//       const progressData = await SlideQuestionAttempt.getProgressAcrossSlides(userId, slideIds);
-      
-//       // Calculate overall section progress
-//       const completedSlides = Object.values(progressData).filter(p => p.completed).length;
-//       const passingSlides = Object.values(progressData).filter(p => p.passed).length;
-//       const overallProgress = (completedSlides / slideIds.length) * 100;
-      
-//       // Calculate average score across all completed slides
-//       const completedScores = Object.values(progressData)
-//         .filter(p => p.completed)
-//         .map(p => p.score);
-      
-//       const averageScore = completedScores.length > 0 
-//         ? completedScores.reduce((sum, score) => sum + score, 0) / completedScores.length 
-//         : 0;
-        
-//       // Prepare slide-specific data
-//       const slideProgress = slides.map(slide => {
-//         const progress = progressData[slide.slide_id] || { completed: false, score: null, passed: false };
-//         return {
-//           slide_id: slide.slide_id,
-//           slide_number: slide.slide_number,
-//           title: slide.title || `Slide ${slide.slide_number}`,
-//           completed: progress.completed,
-//           score: progress.score ? progress.score.toFixed(1) : null,
-//           passed: progress.passed,
-//           completedAt: progress.completedAt
-//         };
-//       });
-
-//       res.status(200).json({
-//         sectionProgress: {
-//           totalSlides: slideIds.length,
-//           completedSlides,
-//           passingSlides,
-//           overallProgressPercent: overallProgress.toFixed(1),
-//           averageScore: averageScore.toFixed(1)
-//         },
-//         slideDetails: slideProgress,
-//         recommendationMessage: overallProgress < 50 
-//           ? "You still have many slides to complete in this section." 
-//           : overallProgress < 80 
-//             ? "You're making good progress through this section. Continue working on the remaining slides." 
-//             : "You've made excellent progress in this section. Focus on any remaining slides to complete your learning."
-//       });
-//     } catch (error) {
-//       console.error('Error fetching section slides progress:', error);
-//       res.status(500).json({ error: 'Internal server error' });
-//     }
-//   }
-// );
 studentRouter.get('/api/student/profile', auth, authorizeRole(['student']), async (req, res) => {
   try {
     const user = await User.findOne({
@@ -605,64 +513,6 @@ studentRouter.get('/api/student/classrooms/:classroomId',
       res.status(500).json({ error: 'Internal server error' });
     }
 });
-
-// // the sections route
-// studentRouter.get('/api/student/classrooms/:classroomId/sections',
-//   auth,
-//   authorizeRole(['student']),
-//   async (req, res) => {
-//     const { classroomId } = req.params;
-    
-//     try {
-//       // First verify the student is part of this classroom
-//       const classroomStudent = await ClassroomStudent.findOne({
-//         where: {
-//           student_id: req.user.user_id,
-//           classroom_id: classroomId
-//         }
-//       });
-
-//       if (!classroomStudent) {
-//         return res.status(404).json({
-//           error: 'Classroom not found or you do not have permission to access it'
-//         });
-//       }
-
-//       const sections = await CourseSection.findAll({
-//         where: { classroom_id: classroomId },
-//         attributes: ['course_section_id', 'course_title', 'course_code']
-//       });
-
-//       res.status(200).json({
-//         message: 'Sections fetched successfully',
-//         sections
-//       });
-//     } catch (error) {
-//       console.error('Error fetching sections:', error);
-//       res.status(500).json({ error: 'Internal server error' });
-//     }
-// });
-// studentRouter.get('/api/student/classrooms/:classroomId/sections',
-//   auth,
-//   authorizeRole(['student']),
-//   async (req, res) => {
-//     const { classroomId } = req.params;
-    
-//     try {
-//       const sections = await CourseSection.findAll({
-//         where: { classroom_id: classroomId },
-//         attributes: ['course_section_id', 'course_title', 'course_code']
-//       });
-
-//       res.status(200).json({
-//         message: 'Sections fetched successfully',
-//         sections
-//       });
-//     } catch (error) {
-//       console.error('Error fetching sections:', error);
-//       res.status(500).json({ error: 'Internal server error' });
-//     }
-// });
 
 // Get course sections in a classroom
 studentRouter.get('/api/student/classrooms/:classroomId/sections', auth, authorizeRole(['student']), async (req, res) => {
