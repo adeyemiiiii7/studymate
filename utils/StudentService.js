@@ -309,7 +309,7 @@ class StudentService {
           console.error(`Failed to send schedule email to ${email} after ${maxRetries} attempts:`, error);
           throw error;
         }
-        // Wait before retrying (exponential backoff)
+       
         await new Promise(resolve => setTimeout(resolve, 1000 * Math.pow(2, retryCount)));
       }
     }
