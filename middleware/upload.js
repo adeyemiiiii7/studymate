@@ -8,16 +8,24 @@ const storage = new CloudinaryStorage({
   params: (req, file) => {
     console.log('Processing file:', file.originalname, 'MIME type:', file.mimetype);
     
+    // Create a safer public_id by removing all special characters
+    const timestamp = Date.now();
+    const safeName = file.originalname
+      .replace(/\s+/g, '_')
+      .replace(/[^a-zA-Z0-9_.-]/g, '')
+      .replace(/\.+$/, '');
+    
     if (file.mimetype.startsWith('image/')) {
       return {
         folder: 'images',
-        resource_type: 'image'
+        resource_type: 'image',
+        public_id: `${timestamp}-${safeName}`
       };
     } else {
       return {
         folder: 'documents',
         resource_type: 'raw',
-        public_id: `${Date.now()}-${file.originalname.replace(/\s+/g, '_')}` 
+        public_id: `${timestamp}-${safeName}`
       };
     }
   }
