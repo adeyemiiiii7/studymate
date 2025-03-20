@@ -6,7 +6,7 @@ const Slide = require('../models/slides');
 const Question = require('../models/question');
 const Announcement = require('../models/announcements');
 const PastQuestion = require('../models/pastQuestions');
-
+const UserCourse = require('../models/userCourse');
 function setupAssociations() {
   // Many-to-Many: User <-> Classroom (via ClassroomStudent)
   User.belongsToMany(Classroom, {
@@ -86,6 +86,9 @@ function setupAssociations() {
      foreignKey: 'course_section_id'
   });
   
+  // User <-> UserCourse association
+User.hasMany(UserCourse, { foreignKey: 'user_id', as: 'courses' });
+UserCourse.belongsTo(User, { foreignKey: 'user_id', as: 'user' });
   // Course Section and Past Questions with Cascade
   CourseSection.hasMany(PastQuestion, {
      as: 'courseSectionPastQuestions',
