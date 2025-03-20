@@ -3,7 +3,7 @@ const wellnessRouter = express.Router();
 const auth = require('../middleware/auth');
 const User = require('../models/user');
 const authorizeRole = require('../middleware/authorizeRole');
-const COOLDOWN_DURATION = 45 * 60 * 1000; // 45 minutes in milliseconds
+const COOLDOWN_DURATION = 45 * 60 * 1000; 
 
 // Start focus mode session
 wellnessRouter.post('/api/focus-mode/start', auth, authorizeRole(['student', 'course_rep']), async (req, res) => {
@@ -79,7 +79,6 @@ wellnessRouter.get('/api/focus-mode/status', auth, authorizeRole(['student', 'co
         remainingTime: remainingCooldown
       });
     }
-
     // Clear expired cooldown
     if (focusData.cooldownEnd && new Date(focusData.cooldownEnd) <= now) {
       await User.update(
@@ -183,11 +182,8 @@ function generateFeedback(answers) {
       studyRecommendation: '',
       timeManagement: ''
     };
-  
-    // Sleep and energy level recommendations
-    const sleepHours = answers[1]; // How many hours did you sleep
-    const energyLevel = answers[2]; // How's your energy level
-    
+    const sleepHours = answers[1]; 
+    const energyLevel = answers[2]; 
     if (energyLevel === "Tired" || energyLevel === "A bit low") {
      feedback.wellnessAdvice = sleepHours === "Less than 6"
         ? "Your tiredness might be due to lack of sleep. Try to get at least 7 hours tonight."
@@ -254,8 +250,6 @@ function generateFeedback(answers) {
       res.status(500).json({ error: 'Internal server error' });
     }
   });
-  
-  // Update status endpoint
  wellnessRouter.get('/api/study-smart/status', auth, async (req, res) => {
     try {
       const user = await User.findByPk(req.user.user_id);
@@ -270,7 +264,6 @@ function generateFeedback(answers) {
           message: "Ready for your first check-in!"
         });
       }
-  
       const lastCheckIn = new Date(studyData.lastCheckIn);
       const now = new Date();
       const hoursSinceCheckIn = (now - lastCheckIn) / (1000 * 60 * 60);
