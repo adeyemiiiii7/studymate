@@ -5,7 +5,7 @@ const authRouter = require('./routes/auth');
 const courseRepRouter = require('./routes/courseRep');
 const {studentRouter} = require('./routes/students');
 const sequelize = require('./config/database'); 
-const setupAssociations = require('./config/associations'); 
+const {setupAssociations }= require('./config/associations'); 
 const questRouter = require('./routes/questRoute.js');
 const wellnessRouter = require('./routes/wellness.js');
 const { initializeScheduleNotifications } = require('./routes/students');
@@ -13,7 +13,6 @@ const app = express();
 app.use(express.json());
 // Setup associations
 setupAssociations();
-
 // Middleware
 app.use(cors());
 app.use(morgan('dev'));

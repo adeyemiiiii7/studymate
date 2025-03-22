@@ -64,8 +64,6 @@ SlideQuestionAttempt.getLastAttempts = async function(userId, slideId, limit = 5
     limit: limit
   });
 };
-
-// Get performance analysis
 SlideQuestionAttempt.getPerformanceAnalysis = async function(userId, slideId) {
   const attempts = await this.getLastAttempts(userId, slideId);
   
@@ -98,7 +96,7 @@ SlideQuestionAttempt.getPerformanceAnalysis = async function(userId, slideId) {
   };
 };
 
-// Additional method to track progress across multiple slides
+// method to track progress across multiple slides
 SlideQuestionAttempt.getProgressAcrossSlides = async function(userId, slideIds) {
   const results = {};
   

@@ -1,6 +1,5 @@
 const { DataTypes } = require('sequelize');
 const sequelize = require('../config/database');
-
 const Classroom = sequelize.define('Classroom', {
   classroom_id: {
     type: DataTypes.UUID,
