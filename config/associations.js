@@ -1,4 +1,3 @@
-// associations.js
 const setupAssociations = () => {
    const User = require('../models/user');
    const Classroom = require('../models/classroom');
