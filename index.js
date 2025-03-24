@@ -9,6 +9,8 @@ const {setupAssociations }= require('./config/associations');
 const questRouter = require('./routes/questRoute.js');
 const wellnessRouter = require('./routes/wellness.js');
 const { initializeScheduleNotifications } = require('./routes/students');
+const adminAuthRouter = require('./routes/adminAuthRoute');
+const adminRoute = require('./routes/adminRoute');
 const app = express();
 app.use(express.json());
 // Setup associations
@@ -21,7 +23,8 @@ app.use(courseRepRouter);
 app.use(studentRouter);
 app.use(questRouter);
 app.use(wellnessRouter);
-
+app.use(adminAuthRouter);
+app.use(adminRoute);
 sequelize
   .sync({ alter: true }) 
   .then(() => {
