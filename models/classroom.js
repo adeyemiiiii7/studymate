@@ -18,9 +18,9 @@ const Classroom = sequelize.define('Classroom', {
     type: DataTypes.STRING,
     allowNull: false,
   },
-  course_name: {  
+  course_of_study: {
     type: DataTypes.STRING,
-    allowNull: false,
+    allowNull: true,
   },
   name: {
     type: DataTypes.STRING,
@@ -48,9 +48,12 @@ const Classroom = sequelize.define('Classroom', {
   indexes: [
     {
       unique: true,
-      fields: ['course_rep_id', 'level', 'department', 'course_name'], 
+      name: 'classrooms_course_rep_id_level_department_course_of_study',
+      fields: ['course_rep_id', 'level', 'department', 'course_of_study'], 
     },
   ],
+  charset: 'utf8',
+  collate: 'utf8_general_ci',
 });
 
 module.exports = Classroom;

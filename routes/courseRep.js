@@ -371,6 +371,8 @@ courseRepRouter.get('/api/course-rep/profile', auth, authorizeRole(['course_rep'
         'last_name',
         'email',
         'level',
+        'department',
+        'course_of_study',
         'role',
         'current_streak',
         'highest_streak',
@@ -479,7 +481,7 @@ courseRepRouter.get('/api/course-rep/classrooms/:classroomId',
           classroom_id: classroomId,
           course_rep_id: req.user.user_id
         },
-        attributes: ['classroom_id', 'name', 'level', 'department', 'session']
+        attributes: ['classroom_id', 'name', 'level', 'department', 'course_of_study', 'session']
       });
 
       if (!classroom) {
@@ -1134,16 +1136,12 @@ courseRepRouter.delete('/api/course-rep/classrooms/:classroomId/past-questions/:
 });
 // Route for creating a classroom
 courseRepRouter.post('/api/course-rep/classrooms/create', auth, authorizeRole(['course_rep']), async (req, res) => {
-  const { name, level, department, session, course_name } = req.body;
+  const { name, level, department, session, course_of_study } = req.body;
   try {
     console.log('Request Body:', req.body);
 
     if (!req.user || !req.user.user_id) {
       return res.status(400).json({ error: 'User information is missing' });
-    }
-
-    if (!course_name) {
-      return res.status(400).json({ error: 'Course name is required' });
     }
 
     // Check if course rep already has an active classroom
@@ -1172,9 +1170,9 @@ courseRepRouter.post('/api/course-rep/classrooms/create', auth, authorizeRole(['
 
     const existingClassroom = await Classroom.findOne({
       where: {
-        course_name,
         level,
         department,
+        course_of_study,
         session,
         course_rep_id: req.user.user_id,
       },
@@ -1182,7 +1180,7 @@ courseRepRouter.post('/api/course-rep/classrooms/create', auth, authorizeRole(['
 
     if (existingClassroom) {
       return res.status(409).json({ 
-        error: 'A classroom with this course, department and level already exists for this course representative' 
+        error: 'A classroom with this department, level and course of study already exists for this course representative' 
       });
     }
 
@@ -1246,7 +1244,7 @@ courseRepRouter.post('/api/course-rep/classrooms/create', auth, authorizeRole(['
         name,
         level,
         department,
-        course_name, // Added course_name
+        course_of_study,
         session,
         join_code: joinCode,
         course_rep_id: req.user.user_id,

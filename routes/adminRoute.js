@@ -71,7 +71,7 @@ adminRouter.patch('/api/admin/users/:userId/role', adminAuth, async (req, res) =
       return res.status(404).json({ error: 'User not found' });
     }
     
-    // Update user role
+    
     await user.update({ role });
     
     res.status(200).json({

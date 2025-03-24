@@ -339,7 +339,7 @@ studentRouter.get('/api/student/profile', auth, authorizeRole(['student']), asyn
       role: 'student'
     },
     attributes: 
-    ['first_name', 'last_name', 'email', 'level', 'xp', 'current_streak', 'highest_streak', 'total_active_days', 'role','daily_quest_status'
+    ['first_name', 'last_name', 'email', 'level', 'department', 'course_of_study', 'xp', 'current_streak', 'highest_streak', 'total_active_days', 'role','daily_quest_status'
 
     ]
   });
@@ -358,10 +358,10 @@ studentRouter.get('/api/student/profile', auth, authorizeRole(['student']), asyn
 
 studentRouter.put('/api/student/profile/update', auth, authorizeRole(['student']), async (req, res) => {
   try {
-    const { first_name, last_name, level } = req.body;
+    const { first_name, last_name, level, department, course_of_study } = req.body;
 
     await User.update(
-     { first_name, last_name, level },
+     { first_name, last_name, level, department, course_of_study },
      { where: { user_id: req.user.user_id, role: 'student' } }
     );
 
