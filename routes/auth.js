@@ -13,7 +13,7 @@ const novu = new Novu('32a0287b127dff3f4a2039298d9a13e7');
 
 authRouter.post('/users/signup', async (req, res) => {
   try {
-    const { first_name, last_name, email, password, level, role } = req.body;
+    const { first_name, last_name, email, password, level, role = 'student', department, course_of_study } = req.body;
     const trimmedEmail = email.trim();
     console.log(`Received email: '${trimmedEmail}'`);
 
@@ -22,7 +22,7 @@ authRouter.post('/users/signup', async (req, res) => {
       return res.status(400).json({ error: 'Invalid email format' });
     }
 
-    // Ensure role is either "student" or "course_rep"
+    // Ensure role is either "student" or "course_rep" (should always be valid with default)
     if (role !== 'student' && role !== 'course_rep') {
       return res.status(400).json({ error: 'Invalid role. Role must be either "student" or "course_rep".' });
     }
@@ -54,7 +54,9 @@ authRouter.post('/users/signup', async (req, res) => {
       email: trimmedEmail,
       password: hashedPassword,
       role,
-      level: parsedLevel, // Both students and course reps have levels
+      level: parsedLevel,
+      department,
+      course_of_study
     });
 
     
@@ -66,6 +68,8 @@ authRouter.post('/users/signup', async (req, res) => {
         email: user.email,
         role: user.role,
         level: user.level,
+        department: user.department,
+        course_of_study: user.course_of_study
       },
     });
   } catch (error) {
@@ -108,6 +112,9 @@ authRouter.post('/users/signin', async (req, res) => {
         last_name: updatedUser.last_name,
         email: updatedUser.email,
         role: updatedUser.role,
+        level: updatedUser.level,
+        department: updatedUser.department,
+        course_of_study: updatedUser.course_of_study,
         current_streak: updatedUser.current_streak,
         highest_streak: updatedUser.highest_streak,
         total_active_days: updatedUser.total_active_days,
