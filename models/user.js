@@ -20,6 +20,14 @@ const User = sequelize.define('User', {
     allowNull: false,
     unique: true,
   },
+  department: {
+    type: DataTypes.STRING,
+    allowNull: true,
+  },
+  course_of_study: {
+    type: DataTypes.STRING,
+    allowNull: true,
+  },
   role: {
     type: DataTypes.ENUM('student', 'course_rep'),
     allowNull: false,
