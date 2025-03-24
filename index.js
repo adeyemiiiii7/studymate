@@ -26,7 +26,13 @@ app.use(wellnessRouter);
 app.use(adminAuthRouter);
 app.use(adminRoute);
 sequelize
-  .sync({ alter: true }) 
+  .sync({ 
+    alter: true,
+    force: false,
+    hooks: true,
+    // Don't try to recreate indexes that already exist
+    indexes: false
+  }) 
   .then(() => {
     console.log('Database & tables created/updated!');
   })
