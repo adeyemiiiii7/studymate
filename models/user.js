@@ -34,11 +34,38 @@ const User = sequelize.define('User', {
   },
   password: {
     type: DataTypes.STRING,
-    allowNull: false,
+    allowNull: true, // Allow null for Google OAuth users
   },
   level: {
     type: DataTypes.INTEGER,
     allowNull: false,
+  },
+  verification_code: {
+    type: DataTypes.STRING(5),
+    allowNull: true,
+  },
+  is_verified: {
+    type: DataTypes.BOOLEAN,
+    defaultValue: false,
+    allowNull: false,
+  },
+  verification_code_expires_at: {
+    type: DataTypes.DATE,
+    allowNull: true,
+  },
+  google_id: {
+    type: DataTypes.STRING,
+    allowNull: true,
+    unique: true
+  },
+  google_email: {
+    type: DataTypes.STRING,
+    allowNull: true,
+    unique: true
+  },
+  google_picture: {
+    type: DataTypes.STRING,
+    allowNull: true
   },
   last_active_date: {
     type: DataTypes.DATEONLY,
@@ -66,12 +93,6 @@ const User = sequelize.define('User', {
   daily_quest_status: {
     type: DataTypes.JSONB,
     defaultValue: {
-      completeQuiz: false,
-      studySession: false,
-      readSlides: false,
-      followSchedule: false,
-      learnSkill: false,
-      codingPractice: false,
       personalQuests: {}
     },
   },
@@ -87,17 +108,16 @@ const User = sequelize.define('User', {
   focus_mode_data: {
     type: DataTypes.JSONB,
     defaultValue: {
-      lastSessionStart: null,      
-      duration: null,             
-      isActive: false,           
-      stressLevel: null,         
-      workType: null,              
-      cooldownEnd: null,         
-      sessionHistory: []          
+      lastSessionStart: null,
+      duration: null,
+      isActive: false,
+      stressLevel: null,
+      workType: null,
+      cooldownEnd: null,
+      sessionHistory: []
     },
     allowNull: false
   },
-
   study_smart_data: {
     type: DataTypes.JSONB,
     defaultValue: {
@@ -106,7 +126,12 @@ const User = sequelize.define('User', {
       answers: null
     },
     allowNull: false
-  }
+  },
+  profile_completed: {
+    type: DataTypes.BOOLEAN,
+    defaultValue: false,
+    allowNull: false
+  },
 }, {
   tableName: 'Users',
   timestamps: true,

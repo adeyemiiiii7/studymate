@@ -26,16 +26,23 @@ module.exports = {
       console.log('Index creation skipped, may already exist:', error.message);
     }
 
-    // Remove the course_name column
-    await queryInterface.removeColumn('Classrooms', 'course_name');
+    // Check if the column exists before trying to remove it
+    const tableInfo = await queryInterface.describeTable('Classrooms');
+    if (tableInfo.course_name) {
+      await queryInterface.removeColumn('Classrooms', 'course_name');
+    }
   },
 
   down: async (queryInterface, Sequelize) => {
-    // Add the course_name column back
-    await queryInterface.addColumn('Classrooms', 'course_name', {
-      type: Sequelize.STRING,
-      allowNull: true // Make it nullable for restoration
-    });
+    // Check if the column exists before trying to add it
+    const tableInfo = await queryInterface.describeTable('Classrooms');
+    if (!tableInfo.course_name) {
+      // Add the course_name column back
+      await queryInterface.addColumn('Classrooms', 'course_name', {
+        type: Sequelize.STRING,
+        allowNull: true // Make it nullable for restoration
+      });
+    }
 
     try {
       // Remove the index without course_name

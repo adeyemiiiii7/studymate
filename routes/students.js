@@ -427,7 +427,7 @@ studentRouter.get('/api/student/classrooms',
         include: [{
           model: Classroom,
           as: 'classrooms',
-          through: { attributes: [] }, // Exclude junction table attributes
+          through: { attributes: [] }, 
           include: [{
             model: CourseSection,
             as: 'courseSections',
@@ -1130,7 +1130,8 @@ const initializeScheduleNotifications = () => {
           },
           include: [{
             model: UserCourse,
-            required: true
+            required: true,
+            as: 'courses'
           }]
         });
 
@@ -1154,7 +1155,7 @@ const initializeScheduleNotifications = () => {
             }
           } catch (studentError) {
             console.error(`Error processing schedule for student ${student.user_id}:`, studentError);
-            // Continue with next student
+           
           }
         }
       } catch (error) {

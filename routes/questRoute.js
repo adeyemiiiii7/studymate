@@ -5,6 +5,7 @@ const User = require('../models/user');
 const authorizeRole = require('../middleware/authorizeRole');
 const { updateStreak } = require('../utils/updateStreak');
 
+// Keeping the QUEST_REWARDS constant for reference but not using it for defaults
 const QUEST_REWARDS = {
   completeQuiz: { xp: 50, title: 'Complete daily quiz' },
   studySession: { xp: 30, title: 'Study for 30 minutes' },
@@ -14,8 +15,7 @@ const QUEST_REWARDS = {
   codingPractice: { xp: 40, title: 'Practiced a new' }
 };
 
-
-// Get all quests status (both system and personal)
+// Get all quests status (only personal quests)
 questRouter.get('/api/quests/status', auth, authorizeRole(['student', 'course_rep']), async (req, res) => {
   try {
     const user = await User.findByPk(req.user.user_id);
@@ -32,17 +32,8 @@ questRouter.get('/api/quests/status', auth, authorizeRole(['student', 'course_re
     
     // Initialize or reset quests if it's a new day
     if (!user.last_quest_reset || user.last_quest_reset !== today) {
-      // Get user's hidden quests
-      const hiddenQuests = user.hidden_quests || [];
-      
-      // Filter out hidden quests from default quests
-      const visibleDefaultQuests = Object.entries(QUEST_REWARDS)
-        .filter(([questId]) => !hiddenQuests.includes(questId))
-        .reduce((acc, [key, value]) => ({ ...acc, [key]: false }), {});
-
-      // Reset quests for the new day
+      // Reset quests for the new day - only personalQuests object preserved
       const defaultStatus = {
-        ...visibleDefaultQuests,
         personalQuests: {} // Reset personal quests
       };
       
@@ -71,7 +62,7 @@ questRouter.get('/api/quests/status', auth, authorizeRole(['student', 'course_re
   }
 });
 
-// Delete quest (both default and personal)
+// Delete quest (only personal quests now)
 questRouter.delete('/api/quests/:questId', auth, authorizeRole(['student', 'course_rep']), async (req, res) => {
   try {
     const { questId } = req.params;
@@ -82,29 +73,18 @@ questRouter.delete('/api/quests/:questId', auth, authorizeRole(['student', 'cour
     }
 
     const dailyQuestStatus = { ...user.daily_quest_status };
-    const hiddenQuests = [...(user.hidden_quests || [])];
 
-    // Handle personal quest deletion
+    // Handle personal quest deletion only
     if (dailyQuestStatus.personalQuests?.[questId]) {
       delete dailyQuestStatus.personalQuests[questId];
-    } 
-    // Handle default quest deletion
-    else if (QUEST_REWARDS[questId]) {
-      // Add to hidden quests if not already hidden
-      if (!hiddenQuests.includes(questId)) {
-        hiddenQuests.push(questId);
-      }
-      // Remove from daily quest status
-      delete dailyQuestStatus[questId];
     } else {
       return res.status(404).json({ error: 'Quest not found' });
     }
 
-    // Update user with the modified quest status and hidden quests
+    // Update user with the modified quest status
     const [updatedRows] = await User.update(
       { 
-        daily_quest_status: dailyQuestStatus,
-        hidden_quests: hiddenQuests
+        daily_quest_status: dailyQuestStatus
       },
       {
         where: { user_id: user.user_id },
@@ -118,8 +98,7 @@ questRouter.delete('/api/quests/:questId', auth, authorizeRole(['student', 'cour
     
     res.json({
       message: 'Quest deleted successfully',
-      updatedQuestStatus: dailyQuestStatus,
-      hiddenQuests
+      updatedQuestStatus: dailyQuestStatus
     });
   } catch (error) {
     console.error('Error deleting quest:', error);
@@ -130,7 +109,7 @@ questRouter.delete('/api/quests/:questId', auth, authorizeRole(['student', 'cour
 // Add personal quest
 questRouter.post('/api/quests/add', auth, authorizeRole(['student', 'course_rep']), async (req, res) => {
   try {
-    const { title, description } = req.body;
+    const { title, description, xp_reward = 50 } = req.body;
     
     if (!title || !description) {
       return res.status(400).json({ error: 'Title and description are required' });
@@ -158,7 +137,7 @@ questRouter.post('/api/quests/add', auth, authorizeRole(['student', 'course_rep'
       title,
       description,
       completed: false,
-      xp_reward: 50,
+      xp_reward: xp_reward,
       created_at: today
     };
 
@@ -181,7 +160,7 @@ questRouter.post('/api/quests/add', auth, authorizeRole(['student', 'course_rep'
         id: questId,
         title,
         description,
-        xp_reward: 50,
+        xp_reward: xp_reward,
         created_at: today
       }
     });
@@ -191,9 +170,7 @@ questRouter.post('/api/quests/add', auth, authorizeRole(['student', 'course_rep'
   }
 });
 
-
-
-// Complete quest (both system and personal)
+// Complete quest (personal quests only)
 questRouter.post('/api/quests/complete/:questId', auth, authorizeRole(['student', 'course_rep']), async (req, res) => {
   try {
     const { questId } = req.params;
@@ -214,33 +191,22 @@ questRouter.post('/api/quests/complete/:questId', auth, authorizeRole(['student'
     const dailyQuestStatus = { ...user.daily_quest_status };
     let xpGained = 0;
 
-    // Handle system quest completion
-    if (QUEST_REWARDS[questId]) {
-      if (dailyQuestStatus[questId]) {
-        return res.status(400).json({ error: 'Quest already completed today' });
-      }
-      
-      xpGained = QUEST_REWARDS[questId].xp;
-      dailyQuestStatus[questId] = true;
-    } 
-    // Handle personal quest completion
-    else {
-      const personalQuest = dailyQuestStatus.personalQuests?.[questId];
-      if (!personalQuest) {
-        return res.status(404).json({ error: 'Personal quest not found' });
-      }
-      
-      if (personalQuest.completed) {
-        return res.status(400).json({ error: 'Personal quest already completed' });
-      }
-      
-      if (personalQuest.created_at !== today) {
-        return res.status(400).json({ error: 'Personal quest expired' });
-      }
-      
-      xpGained = personalQuest.xp_reward;
-      dailyQuestStatus.personalQuests[questId].completed = true;
+    // Handle personal quest completion only
+    const personalQuest = dailyQuestStatus.personalQuests?.[questId];
+    if (!personalQuest) {
+      return res.status(404).json({ error: 'Quest not found' });
     }
+    
+    if (personalQuest.completed) {
+      return res.status(400).json({ error: 'Quest already completed' });
+    }
+    
+    if (personalQuest.created_at !== today) {
+      return res.status(400).json({ error: 'Quest expired' });
+    }
+    
+    xpGained = personalQuest.xp_reward;
+    dailyQuestStatus.personalQuests[questId].completed = true;
     
     // Update user with new XP and quest status
     const [updatedRows] = await User.update(

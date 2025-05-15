@@ -30,7 +30,6 @@ sequelize
     alter: true,
     force: false,
     hooks: true,
-    // Don't try to recreate indexes that already exist
     indexes: false
   }) 
   .then(() => {
