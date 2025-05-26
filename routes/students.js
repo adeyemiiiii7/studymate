@@ -55,7 +55,6 @@ studentRouter.get('/api/student/classrooms/:classroomId/sections/:sectionId/slid
           }
         });
       }
-     // Backend: Shuffling logic (already correct)
 const shuffledQuestions = allQuestions.map(q => {
   const shuffledOptions = q.options
     .map((value, originalIndex) => ({ 
@@ -72,7 +71,7 @@ const shuffledQuestions = allQuestions.map(q => {
     question_text: q.question_text,
     options: shuffledOptions.map(opt => opt.value),
     correct_answer: q.correct_answer,
-    option_mapping: optionMapping // Send this to the frontend
+    option_mapping: optionMapping 
   };
 })
       .sort(() => 0.5 - Math.random())
@@ -96,7 +95,7 @@ const shuffledQuestions = allQuestions.map(q => {
       });
     }
 });
-// Enhanced submit-test route for slides with progress analysis
+//  submit-test route for slides with progress analysis
 studentRouter.post('/api/student/classrooms/:classroomId/sections/:sectionId/slides/:slideId/submit-test',
   auth, 
   authorizeRole(['student', 'course_rep']), 
@@ -138,8 +137,6 @@ studentRouter.post('/api/student/classrooms/:classroomId/sections/:sectionId/sli
       if (questions.length === 0) {
         return res.status(404).json({ error: 'No questions found' });
       }
-
-      // Scoring logic
       const scoredAnswers = userAnswers.map(userAnswer => {
         const question = questions.find(q => q.question_id === userAnswer.question_id);
 
@@ -147,7 +144,6 @@ studentRouter.post('/api/student/classrooms/:classroomId/sections/:sectionId/sli
           console.error(`Question not found for ID: ${userAnswer.question_id}`);
           return null;
         }
-
         // The selected_option is already the original index
         const originalOptionIndex = userAnswer.selected_option;
 
@@ -159,7 +155,7 @@ studentRouter.post('/api/student/classrooms/:classroomId/sections/:sectionId/sli
         return {
           question_id: userAnswer.question_id,
           question_text: question.question_text,
-          user_selected_option: originalOptionIndex, // Original index
+          user_selected_option: originalOptionIndex, 
           correct_answer: question.correct_answer,
           correct_option: question.options[question.correct_answer],
           is_correct: isCorrect,
@@ -188,8 +184,6 @@ studentRouter.post('/api/student/classrooms/:classroomId/sections/:sectionId/sli
 
       // Prepare personalized feedback based on performance
       let feedbackMessage = performanceAnalysis.message;
-      
-      // Add more detailed feedback for improvement if needed
       if (performanceAnalysis.improvementNeeded) {
         // Identify weak areas
         const weakTopics = scoredAnswers
@@ -200,7 +194,6 @@ studentRouter.post('/api/student/classrooms/:classroomId/sections/:sectionId/sli
         feedbackMessage += " Focus on these areas: " + 
           (weakTopics.length > 0 ? weakTopics.join(", ") : "Review all topics in this slide");
       }
-
       res.status(200).json({
         message: 'Test submitted successfully',
         currentScore: score,
@@ -224,7 +217,7 @@ studentRouter.post('/api/student/classrooms/:classroomId/sections/:sectionId/sli
     }
 });
 
-// New route for slide progress tracking
+//  slide progress tracking
 studentRouter.get('/api/student/classrooms/:classroomId/slides/:slideId/progress',
   auth, 
   authorizeRole(['student', 'course_rep']), 
@@ -232,7 +225,6 @@ studentRouter.get('/api/student/classrooms/:classroomId/slides/:slideId/progress
     try {
       const { classroomId, slideId } = req.params;
       const userId = req.user.user_id;
-
       // Verify classroom enrollment
       if (req.user.role === 'student') {
         const enrollment = await ClassroomStudent.findOne({
@@ -246,7 +238,6 @@ studentRouter.get('/api/student/classrooms/:classroomId/slides/:slideId/progress
           return res.status(403).json({ error: 'Not enrolled in this classroom' });
         }
       }
-
       // Get slide details to provide better context
       const slide = await Slide.findOne({
         where: {
@@ -254,14 +245,12 @@ studentRouter.get('/api/student/classrooms/:classroomId/slides/:slideId/progress
           classroom_id: classroomId
         }
       });
-
       if (!slide) {
         return res.status(404).json({ error: 'Slide not found' });
       }
-
       // Get progress analysis
       const progressData = await SlideQuestionAttempt.getPerformanceAnalysis(userId, slideId);
-      
+    
       // Get last 5 attempts with details
       const lastAttempts = await SlideQuestionAttempt.getLastAttempts(userId, slideId);
       

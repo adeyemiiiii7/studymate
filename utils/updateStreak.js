@@ -1,14 +1,10 @@
 const { Op } = require('sequelize');
 const User = require('../models/user');
 
-/**
- * Updates a user's streak information when they log in or perform actions
- * Uses consistent UTC-based date comparisons to avoid timezone issues
- * 
- * @param {string|number} userId - The ID of the user to update
- * @param {boolean} [forceUpdate=false] - Whether to force streak update even if already updated today
- * @returns {Promise<Object>} Updated user object
- */
+
+ // Updates a user's streak information when they log in or perform actions
+ 
+ 
 const updateStreak = async (userId, forceUpdate = false) => {
   try {
     // Find the user
@@ -27,7 +23,7 @@ const updateStreak = async (userId, forceUpdate = false) => {
     yesterdayDate.setUTCDate(yesterdayDate.getUTCDate() - 1);
     const yesterdayStr = yesterdayDate.toISOString().split('T')[0];
 
-    // Convert user's last active date to the same format for comparison
+   
     let lastActiveDateStr = null;
     if (user.last_active_date) {
       const lastActiveDate = new Date(user.last_active_date);
@@ -62,7 +58,7 @@ const updateStreak = async (userId, forceUpdate = false) => {
     // If the user was already active today (but we're forcing an update), don't change streak
     else if (lastActiveDateStr === todayStr) {
       console.log(`User ${userId} already active today. No streak change.`);
-      // No streak changes needed, but we'll still save the current date below
+    
     } 
     // Otherwise, reset the streak (user missed at least one day)
     else {
@@ -81,7 +77,7 @@ const updateStreak = async (userId, forceUpdate = false) => {
     return user;
   } catch (error) {
     console.error(`Error updating streak for user ${userId}:`, error);
-    throw error; // Re-throw to allow the caller to handle it
+    throw error; 
   }
 };
 

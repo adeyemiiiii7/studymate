@@ -1,13 +1,13 @@
 const UserStudyPreference = require('../models/userStudyPreference');
 const UserCourse = require('../models/userCourse');
 const nodemailer = require('nodemailer');
-
+require('dotenv').config();
 // Email transporter configuration
 const transporter = nodemailer.createTransport({
   service: 'gmail',
   auth: {
-    user: process.env.EMAIL_USER || 'aladesuyides@gmail.com',
-    pass: process.env.EMAIL_PASSWORD || 'kugi fihw cugc trye'
+    user: process.env.EMAIL_USER,
+    pass: process.env.EMAIL_PASSWORD 
   },
   tls: {
     rejectUnauthorized: false
@@ -26,7 +26,7 @@ class StudentService {
     const preferences = await UserStudyPreference.findOne({
       where: { user_id: userId }
     });
-   // If no preferences exist, return null to indicate preferences need to be set
+   
    if (!preferences) {
     return null;
   }

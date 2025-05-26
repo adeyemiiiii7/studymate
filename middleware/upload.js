@@ -2,7 +2,7 @@ const multer = require('multer');
 const { CloudinaryStorage } = require('multer-storage-cloudinary');
 const cloudinary = require('../config/cloudinary');
 
-// Create a CloudinaryStorage instance with better handling for document types
+
 const storage = new CloudinaryStorage({
   cloudinary: cloudinary,
   params: (req, file) => {

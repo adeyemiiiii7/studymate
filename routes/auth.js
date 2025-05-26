@@ -20,7 +20,6 @@ const corsOptions = {
     const allowedOrigins = [
       process.env.FRONTEND_URL || 'http://localhost:10000',
       'http://localhost:10000',
-      // Add any other origins you need
     ];
     
     if (allowedOrigins.indexOf(origin) !== -1 || !origin) {
@@ -42,7 +41,7 @@ authRouter.get('/api/auth/google/url', (req, res) => {
   try {
     const redirectUri = process.env.GOOGLE_REDIRECT_URI || 'http://localhost:10000/auth/callback';
     
-    // Add state parameter with random value to prevent CSRF and ensure uniqueness
+  
     const state = Math.random().toString(36).substring(2, 15) + 
                   Math.random().toString(36).substring(2, 15);
     
@@ -61,7 +60,7 @@ authRouter.get('/api/auth/google/url', (req, res) => {
       ],
       redirect_uri: redirectUri,
       state: state,
-      prompt: 'consent',  // Always show consent screen to ensure refresh token
+      prompt: 'consent',  
       include_granted_scopes: true
     });
     
@@ -77,7 +76,7 @@ authRouter.get('/api/auth/google/url', (req, res) => {
 
 
 
-// UPDATED: Google OAuth token handler with improved error handling and session management
+// Google OAuth token handler with improved error handling and session management
 authRouter.get('/api/auth/google/token', async (req, res) => {
   try {
     const { code, state } = req.query;
@@ -209,7 +208,7 @@ authRouter.get('/api/auth/google/token', async (req, res) => {
     });
   }
 });
-// UPDATED: Better error handling for Google OAuth callback
+
 authRouter.get('/api/auth/google/callback', async (req, res) => {
   try {
     const { code } = req.query;
@@ -286,7 +285,7 @@ authRouter.get('/api/auth/google/callback', async (req, res) => {
     const token = jwt.sign(
       { id: user.user_id },
       process.env.JWT_SECRET || 'defaultSecret',
-      { expiresIn: '7d' }  // Extended from 1d to 7d
+      { expiresIn: '7d' }  
     );
 
     // Update streak
@@ -500,7 +499,10 @@ authRouter.post('/users/signin', async (req, res) => {
 
     const isPasswordValid = await bcryptjs.compare(password, user.password);
     if (!isPasswordValid) {
-      return res.status(401).json({ error: 'Invalid password' });
+      return res.status(401).json({ 
+        error: 'invalid_credentials',
+        message: 'Invalid password. Please try again.'
+      });
     }
 
     // Include the user's ID in the token
@@ -596,20 +598,5 @@ authRouter.post('/auth/complete-profile', auth, async (req, res) => {
   }
 });
 
-// authRouter.post('/update-streak', auth, async (req, res) => {
-//   try {
-//     const updatedUser = await updateStreak(req.user.user_id);
-//     res.json({
-//       message: 'Streak updated successfully',
-//       streak: {
-//         current_streak: updatedUser.current_streak,
-//         highest_streak: updatedUser.highest_streak,
-//         total_active_days: updatedUser.total_active_days,
-//       },
-//     });
-//   } catch (error) {
-//     console.error('Error updating streak:', error);
-//     res.status(500).json({ error: 'An error occurred while updating the streak' });
-//   }
-// });
+
 module.exports = authRouter;

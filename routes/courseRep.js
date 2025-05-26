@@ -739,9 +739,6 @@ courseRepRouter.get('/api/course-rep/classrooms/:classroomId/leaderboard',
     const { classroomId } = req.params;
 
     try {
-      // console.log('User ID:', req.user.user_id);
-      // console.log('Classroom ID:', classroomId);
-
       // Check if the user is a course rep for this classroom
       const isCourseRep = await Classroom.findOne({
         where: {
@@ -1045,7 +1042,6 @@ courseRepRouter.delete('/api/course-rep/classrooms/:classroomId/course-sections/
        transaction: t
      });
      
-     // Then delete associated records
      await Promise.all([
        Slide.destroy({
          where: { course_section_id: section.course_section_id },

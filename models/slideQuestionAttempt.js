@@ -96,7 +96,7 @@ SlideQuestionAttempt.getPerformanceAnalysis = async function(userId, slideId) {
   };
 };
 
-// method to track progress across multiple slides
+
 SlideQuestionAttempt.getProgressAcrossSlides = async function(userId, slideIds) {
   const results = {};
   

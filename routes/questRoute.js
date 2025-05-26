@@ -4,17 +4,6 @@ const auth = require('../middleware/auth');
 const User = require('../models/user');
 const authorizeRole = require('../middleware/authorizeRole');
 const { updateStreak } = require('../utils/updateStreak');
-
-// Keeping the QUEST_REWARDS constant for reference but not using it for defaults
-const QUEST_REWARDS = {
-  completeQuiz: { xp: 50, title: 'Complete daily quiz' },
-  studySession: { xp: 30, title: 'Study for 30 minutes' },
-  readSlides: { xp: 25, title: 'Read course slides' },
-  followSchedule: { xp: 20, title: 'Follow study timetable' },
-  learnSkill: { xp: 35, title: 'Learn something new' },
-  codingPractice: { xp: 40, title: 'Practiced a new' }
-};
-
 // Get all quests status (only personal quests)
 questRouter.get('/api/quests/status', auth, authorizeRole(['student', 'course_rep']), async (req, res) => {
   try {
