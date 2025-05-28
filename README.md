@@ -1,1 +1,1 @@
-# studymate_frontend
+# studymate
